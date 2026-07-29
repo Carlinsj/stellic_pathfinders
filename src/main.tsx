@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import { App } from "./App";
 import { DemoProvider } from "./state/DemoContext";
+import { TenantProvider } from "./tenancy/TenantContext";
 import "./styles.css";
 
 const queryClient = new QueryClient({
@@ -14,9 +15,11 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <DemoProvider>
-          <App />
-        </DemoProvider>
+        <TenantProvider>
+          <DemoProvider>
+            <App />
+          </DemoProvider>
+        </TenantProvider>
       </BrowserRouter>
     </QueryClientProvider>
   </StrictMode>,

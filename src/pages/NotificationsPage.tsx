@@ -7,46 +7,46 @@ import {
   LockKeyhole,
   Mail,
   Send,
+  ShieldCheck,
   UserRound,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { PageHeader } from "../components/ui";
-import {
-  course,
-  effectiveAt,
-  maya,
-  mayaRequirements,
-  roomById,
-} from "../data/demoData";
 import { evaluateCompatibility } from "../domain/compatibilityEngine";
 import { createNotificationMessages } from "../services/notifications";
 import { useDemo } from "../state/DemoContext";
+import { roomForTenant } from "../tenancy/tenantConfigs";
 
 const audienceMeta = {
   instructor: { label: "Instructor notice", icon: GraduationCap, privacy: "Minimum necessary disclosure" },
-  facilities: { label: "Facilities request", icon: Building2, privacy: "Requirement-level details only" },
+  facilities: { label: "Facilities request", icon: Building2, privacy: "Requirement-level room details" },
   student: { label: "Student confirmation", icon: UserRound, privacy: "Personal status and next step" },
-  administrator: { label: "Administrator recommendation", icon: Bell, privacy: "Operational decision support" },
+  administrator: { label: "Administrator resolution", icon: Bell, privacy: "Operational decision support" },
+  accessibility: { label: "Accessibility-office alert", icon: ShieldCheck, privacy: "Authorised review context" },
+  scheduling: { label: "Scheduling recommendation", icon: Building2, privacy: "Room and course data only" },
 } as const;
 
 export function NotificationsPage() {
-  const { notifications } = useDemo();
+  const { notifications, tenant } = useDemo();
+  const scenario = tenant.scenario;
   const fallback = useMemo(
     () =>
       createNotificationMessages({
-        student: maya,
-        course,
-        previousRoom: roomById("room-202"),
-        newRoom: roomById("room-815"),
-        proposedRoom: roomById("room-812"),
+        student: scenario.student,
+        course: scenario.course,
+        previousRoom: roomForTenant(tenant, scenario.originalRoomId),
+        newRoom: roomForTenant(tenant, scenario.replacementRoomId),
+        proposedRoom: roomForTenant(tenant, scenario.recommendedRoomId),
         result: evaluateCompatibility({
-          requirements: mayaRequirements,
-          roomFeatures: roomById("room-815").features,
-          evaluatedAt: "2026-07-29T15:14:00.000Z",
+          requirements: scenario.requirements,
+          roomFeatures: roomForTenant(tenant, scenario.replacementRoomId).features,
+          featureLabelMap: Object.fromEntries(tenant.featureCatalogue.map((feature) => [feature.key, feature.displayName])),
+          evaluatedAt: scenario.detectedAt,
         }),
-        effectiveAt,
+        effectiveAt: scenario.effectiveAt,
+        tenant,
       }),
-    [],
+    [scenario, tenant],
   );
   const messages = notifications.length ? notifications : fallback;
   const [activeId, setActiveId] = useState(messages[0]?.id ?? "");
@@ -65,15 +65,10 @@ export function NotificationsPage() {
   return (
     <div className="page">
       <PageHeader
-        eyebrow="NOTIFICATION PREVIEW"
+        eyebrow={`${tenant.shortName.toUpperCase()} NOTIFICATION TEMPLATES`}
         title="The right message for each role"
-        description="Template-based messages work without an AI key and disclose only the information each recipient needs."
-        actions={
-          <div className="transport-toggle" aria-label="Preview transport">
-            <button className={transport === "email" ? "active" : ""} onClick={() => setTransport("email")} type="button"><Mail size={15} /> Email</button>
-            <button className={transport === "in-app" ? "active" : ""} onClick={() => setTransport("in-app")} type="button"><Bell size={15} /> In-app</button>
-          </div>
-        }
+        description={`Every message uses ${tenant.shortName}'s office names, support contact, and wording while preserving minimum-necessary disclosure.`}
+        actions={<div className="transport-toggle" aria-label="Preview transport"><button className={transport === "email" ? "active" : ""} onClick={() => setTransport("email")} type="button"><Mail size={15} /> Email</button><button className={transport === "in-app" ? "active" : ""} onClick={() => setTransport("in-app")} type="button"><Bell size={15} /> In-app</button></div>}
       />
 
       <div className="notification-layout">
@@ -91,31 +86,17 @@ export function NotificationsPage() {
         </nav>
 
         <section className={`message-preview ${transport}`}>
-          <div className="message-toolbar">
-            <span className="preview-label">{transport === "email" ? "EMAIL PREVIEW" : "IN-APP PREVIEW"}</span>
-            <button type="button" onClick={copy}><Copy size={15} /> {copied ? "Copied" : "Copy"}</button>
-          </div>
-          <div className="message-meta">
-            <span className={`audience-avatar ${active.audience}`}><Icon size={19} /></span>
-            <span><small>TO</small><strong>{meta.label}</strong></span>
-            <span className="privacy-safe-chip"><LockKeyhole size={14} /> Privacy-safe</span>
-          </div>
+          <div className="message-toolbar"><span className="preview-label">{transport === "email" ? "EMAIL PREVIEW" : "IN-APP PREVIEW"}</span><button type="button" onClick={copy}><Copy size={15} /> {copied ? "Copied" : "Copy"}</button></div>
+          <div className="message-meta"><span className={`audience-avatar ${active.audience}`}><Icon size={19} /></span><span><small>TO</small><strong>{meta.label}</strong></span><span className="privacy-safe-chip"><LockKeyhole size={14} /> Privacy-safe</span></div>
           <div className="subject-line"><small>SUBJECT</small><h2>{active.subject}</h2></div>
-          <div className="message-body">
-            {active.body.split(". ").map((sentence, index, all) => (
-              <span key={`${sentence}-${index}`}>{sentence}{index < all.length - 1 ? ". " : ""}</span>
-            ))}
-          </div>
-          <div className="message-actions">
-            <button type="button" className="button button-primary"><Send size={16} /> Send via demo transport</button>
-            <span><CheckCircle2 size={15} /> Console fallback active</span>
-          </div>
+          <div className="message-body"><p>{active.body}</p></div>
+          <div className="message-actions"><button type="button" className="button button-primary"><Send size={16} /> Send via demo transport</button><span><CheckCircle2 size={15} /> In-app demo only</span></div>
         </section>
       </div>
 
       <section className="privacy-audit">
         <div><LockKeyhole size={20} /><span><strong>Disclosure check passed</strong><small>Instructor notice contains no diagnosis, student name, or complete accommodation profile.</small></span></div>
-        <span className="status-badge status-success"><CheckCircle2 size={14} /> Verified by test</span>
+        <span className="status-badge status-success"><CheckCircle2 size={14} /> Tenant template verified</span>
       </section>
     </div>
   );

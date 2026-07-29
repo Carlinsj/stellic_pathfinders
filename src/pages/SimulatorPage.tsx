@@ -11,22 +11,26 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { course } from "../data/demoData";
 import { PageHeader, StatusBadge } from "../components/ui";
-import { useDemo } from "../state/DemoContext";
 import { roomChangeInputSchema } from "../domain/validation";
+import { useDemo } from "../state/DemoContext";
+import { roomForTenant } from "../tenancy/tenantConfigs";
 
 export function SimulatorPage() {
-  const { hasRun, result, runDemo, resetDemo, effectiveAt } = useDemo();
-  const [selectedRoom, setSelectedRoom] = useState(hasRun ? "room-815" : "room-202");
+  const { hasRun, result, runDemo, resetDemo, effectiveAt, tenant } = useDemo();
+  const scenario = tenant.scenario;
+  const original = roomForTenant(tenant, scenario.originalRoomId);
+  const replacement = roomForTenant(tenant, scenario.replacementRoomId);
+  const recommended = roomForTenant(tenant, scenario.recommendedRoomId);
+  const [selectedRoom, setSelectedRoom] = useState(hasRun ? replacement.id : original.id);
   const [effective, setEffective] = useState(effectiveAt.slice(0, 16));
   const [formError, setFormError] = useState("");
 
   const trigger = () => {
     const parsed = roomChangeInputSchema.safeParse({
-      sectionId: course.id,
-      previousRoomId: "room-202",
-      newRoomId: "room-815",
+      sectionId: scenario.course.id,
+      previousRoomId: original.id,
+      newRoomId: replacement.id,
       effectiveAt: new Date(effective).toISOString(),
       reason: "Instructor-requested room update",
     });
@@ -41,100 +45,71 @@ export function SimulatorPage() {
 
   const reset = () => {
     resetDemo();
-    setSelectedRoom("room-202");
+    setSelectedRoom(original.id);
   };
 
   return (
     <div className="page simulator-page">
       <PageHeader
-        eyebrow="ADMINISTRATIVE ROOM-CHANGE SIMULATOR"
+        eyebrow={`${tenant.shortName.toUpperCase()} ADMINISTRATIVE ROOM-CHANGE SIMULATOR`}
         title="See access continuity checks happen live"
-        description="This seeded scenario is synthetic, deterministic, and ready to demonstrate in under two minutes."
-        actions={
-          <button className="button button-secondary" type="button" onClick={reset}>
-            <RefreshCcw size={16} /> Reset demo
-          </button>
-        }
+        description={`This ${tenant.shortName} scenario is synthetic, deterministic, and powered by the same shared engine as every tenant.`}
+        actions={<button className="button button-secondary" type="button" onClick={reset}><RefreshCcw size={16} /> Reset demo</button>}
       />
 
       <div className="simulator-grid">
         <section className="simulator-control">
-          <div className="competition-label"><Bolt size={16} /> COMPETITION SCENARIO</div>
-          <h2>Move Algorithms from Room 202 to Room 815</h2>
-          <p>The new room has an accessible entrance and elevator—but four classroom features do not carry forward.</p>
+          <div className="competition-label"><Bolt size={16} /> {tenant.shortName.toUpperCase()} COMPETITION SCENARIO</div>
+          <h2>Move {scenario.course.courseCode} from {original.roomNumber} to {replacement.roomNumber}</h2>
+          <p>The replacement looks plausible, but the tenant catalogue exposes {tenant.slug === "nyu" ? "four unavailable features" : "two unavailable features and one verification gap"}.</p>
           <div className="simulator-form">
-            <label>
-              <span>Course section</span>
-              <select defaultValue={course.id}>
-                <option value={course.id}>{course.courseCode} · {course.title}</option>
-              </select>
-            </label>
+            <label><span>Course section</span><select defaultValue={scenario.course.id}><option value={scenario.course.id}>{scenario.course.courseCode} · {scenario.course.title}</option></select></label>
             <div className="room-change-fields">
-              <label>
-                <span>Current room</span>
-                <select value="room-202" disabled><option value="room-202">Room 202 · 2 MetroTech</option></select>
-              </label>
+              <label><span>Current room</span><select value={original.id} disabled><option value={original.id}>{original.roomNumber} · Ready</option></select></label>
               <ChevronRight aria-hidden="true" />
-              <label>
-                <span>New room</span>
-                <select value={selectedRoom} onChange={(event) => setSelectedRoom(event.target.value)}>
-                  <option value="room-202">Room 202 · Ready</option>
-                  <option value="room-815">Room 815 · Demo scenario</option>
-                  <option value="room-812">Room 812 · Ready</option>
-                  <option value="room-804">Room 804 · Verify</option>
-                </select>
-              </label>
+              <label><span>New room</span><select value={selectedRoom} onChange={(event) => setSelectedRoom(event.target.value)}>
+                <option value={original.id}>{original.roomNumber} · Ready</option>
+                <option value={replacement.id}>{replacement.roomNumber} · Demo scenario</option>
+                <option value={recommended.id}>{recommended.roomNumber} · Ready</option>
+              </select></label>
             </div>
-            <label>
-              <span>Effective date and time</span>
-              <div className="input-icon"><CalendarClock size={17} /><input type="datetime-local" value={effective} onChange={(event) => setEffective(event.target.value)} /></div>
-            </label>
+            <label><span>Effective date and time</span><div className="input-icon"><CalendarClock size={17} /><input type="datetime-local" value={effective} onChange={(event) => setEffective(event.target.value)} /></div></label>
             {formError && <p className="form-error" role="alert">{formError}</p>}
           </div>
           <button className="run-demo-button" type="button" onClick={trigger}>
             <span><Play fill="currentColor" size={19} /></span>
-            <span><strong>Run competition demo</strong><small>Trigger room change and evaluate affected students</small></span>
+            <span><strong>Run {tenant.shortName} competition demo</strong><small>Trigger room change and evaluate affected students</small></span>
             <ArrowRight size={20} />
           </button>
-          <p className="demo-disclaimer">No external integrations or AI decision-making are required for this scenario.</p>
+          <p className="demo-disclaimer">No external integrations, medical data, or AI decision-making are required.</p>
         </section>
 
         <section className={`live-result${hasRun ? " active" : ""}`} aria-live="polite">
           {!hasRun || !result ? (
             <div className="waiting-state">
-              <span className="waiting-icon"><Bolt /></span>
-              <p className="eyebrow">LIVE WORKFLOW</p>
-              <h2>Ready for the room change</h2>
-              <p>Run the scenario to see affected enrolments, room checks, alternatives, and notifications update here.</p>
-              <ol>
-                <li><span>1</span>Detect change</li>
-                <li><span>2</span>Check requirements</li>
-                <li><span>3</span>Create response</li>
-              </ol>
+              <span className="waiting-icon"><Bolt /></span><p className="eyebrow">LIVE WORKFLOW</p><h2>Ready for the room change</h2>
+              <p>Run the scenario to see {tenant.terminology.accessibilityOfficeShort}, room checks, alternatives, and notifications update here.</p>
+              <ol><li><span>1</span>Detect change</li><li><span>2</span>Check requirements</li><li><span>3</span>Start tenant workflow</li></ol>
             </div>
           ) : (
             <div className="result-active">
-              <div className="live-result-top">
-                <div><p className="eyebrow">WORKFLOW COMPLETE · 0.04s</p><h2>Room 815 needs action</h2></div>
-                <StatusBadge status={result.compatibility.status} />
-              </div>
+              <div className="live-result-top"><div><p className="eyebrow">WORKFLOW STARTED · DETERMINISTIC</p><h2>{replacement.roomNumber} needs action</h2></div><StatusBadge status={result.compatibility.status} /></div>
               <div className="workflow-steps">
-                <div><span><CheckCircle2 /></span><p><strong>Change detected</strong><small>Room 202 → 815</small></p></div>
-                <div><span><CheckCircle2 /></span><p><strong>1 student affected</strong><small>5 requirements evaluated</small></p></div>
-                <div><span><CheckCircle2 /></span><p><strong>Case RR-1042 created</strong><small>4 missing features</small></p></div>
-                <div><span><CheckCircle2 /></span><p><strong>Room 812 recommended</strong><small>5 of 5 requirements met</small></p></div>
+                {tenant.workflow.steps.slice(0, 4).map((step, index) => (
+                  <div key={step.id}><span><CheckCircle2 /></span><p><strong>{step.label}</strong><small>{index === 0 ? `${original.roomNumber} → ${replacement.roomNumber}` : step.ownerRole.replaceAll("_", " ")}</small></p></div>
+                ))}
               </div>
               <div className="impact-panel">
-                <div><span className="avatar maya">MC</span><span><strong>Maya Chen</strong><small>CS-GY 6033 · Enrolled student</small></span></div>
-                <div className="impact-stats"><span><Users size={16} /><strong>1</strong> affected</span><span><UserRoundCheck size={16} /><strong>5</strong> checked</span></div>
+                <div><span className="avatar maya">{scenario.student.fullName.split(" ").map((part) => part[0]).join("")}</span><span><strong>{scenario.student.fullName}</strong><small>{scenario.course.courseCode} · Enrolled student</small></span></div>
+                <div className="impact-stats"><span><Users size={16} /><strong>1</strong> affected</span><span><UserRoundCheck size={16} /><strong>{scenario.requirements.length}</strong> checked</span></div>
               </div>
               <div className="best-alternative">
                 <p className="eyebrow">BEST COMPATIBLE ALTERNATIVE</p>
-                <div><span className="room-number-large">812</span><span><strong>Room 812</strong><small>Available · 52 seats · Same floor · Verified</small></span><StatusBadge status="compatible" compact /></div>
+                <div><span className="room-number-large">{recommended.roomNumber}</span><span><strong>{recommended.roomNumber}</strong><small>Available · {recommended.capacity} seats · Verified</small></span><StatusBadge status="compatible" compact /></div>
               </div>
               <div className="result-links">
-                <Link className="button button-primary" to="/app/alert">Open room-change alert <ArrowRight size={16} /></Link>
-                <Link className="text-link" to="/notifications">Preview messages <ArrowRight size={16} /></Link>
+                <Link className="button button-primary" to={`/${tenant.slug}/student/alert`}>Open room-change alert <ArrowRight size={16} /></Link>
+                <Link className="text-link" to={`/${tenant.slug}/admin/notifications`}>Preview messages <ArrowRight size={16} /></Link>
               </div>
             </div>
           )}
@@ -142,8 +117,8 @@ export function SimulatorPage() {
       </div>
 
       <section className="simulator-assurance">
-        <span><CheckCircle2 /> Same input, same result</span>
-        <span><CheckCircle2 /> Template fallback enabled</span>
+        <span><CheckCircle2 /> Same engine, tenant configuration</span>
+        <span><CheckCircle2 /> Workflow snapshot v{tenant.workflow.version}</span>
         <span><CheckCircle2 /> Synthetic student data</span>
         <span><CheckCircle2 /> Staff confirmation required</span>
       </section>

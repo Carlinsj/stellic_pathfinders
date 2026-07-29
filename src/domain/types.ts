@@ -12,6 +12,16 @@ export const featureTypes = [
 ] as const;
 
 export type FeatureType = (typeof featureTypes)[number];
+export type UniversitySlug = "nyu" | "uiuc";
+export type AppRole =
+  | "student"
+  | "accessibility_coordinator"
+  | "facilities_staff"
+  | "scheduling_staff"
+  | "instructor"
+  | "university_admin"
+  | "platform_admin"
+  | "demo_admin";
 export type Availability =
   | "available"
   | "unavailable"
@@ -24,6 +34,7 @@ export type CompatibilityStatus =
 
 export interface FunctionalRequirement {
   id: string;
+  universityId: string;
   studentId: string;
   featureType: FeatureType;
   requirementLevel: "required" | "preferred";
@@ -33,6 +44,7 @@ export interface FunctionalRequirement {
 }
 
 export interface RoomFeature {
+  universityId: string;
   roomId: string;
   featureType: FeatureType;
   availability: Availability;
@@ -44,6 +56,7 @@ export interface RoomFeature {
 
 export interface Building {
   id: string;
+  universityId: string;
   name: string;
   address: string;
   latitude: number;
@@ -52,6 +65,7 @@ export interface Building {
 
 export interface Room {
   id: string;
+  universityId: string;
   buildingId: string;
   roomNumber: string;
   capacity: number;
@@ -89,6 +103,7 @@ export interface CompatibilityResult {
 
 export interface Student {
   id: string;
+  universityId: string;
   email: string;
   fullName: string;
   role: "student";
@@ -96,6 +111,7 @@ export interface Student {
 
 export interface CourseSection {
   id: string;
+  universityId: string;
   courseCode: string;
   title: string;
   section: string;
@@ -127,6 +143,7 @@ export interface RankedRoom {
 
 export interface RoomChangeEvent {
   id: string;
+  universityId: string;
   previousRoomId: string;
   newRoomId: string;
   sectionId: string;
@@ -138,6 +155,7 @@ export interface RoomChangeEvent {
 
 export interface RemediationCase {
   id: string;
+  universityId: string;
   compatibilityCheckId: string;
   status: "open" | "in_review" | "awaiting_verification" | "resolved";
   assignedTeam: string;
@@ -149,7 +167,14 @@ export interface RemediationCase {
 
 export interface NotificationMessage {
   id: string;
-  audience: "instructor" | "facilities" | "student" | "administrator";
+  universityId: string;
+  audience:
+    | "instructor"
+    | "facilities"
+    | "student"
+    | "administrator"
+    | "accessibility"
+    | "scheduling";
   subject: string;
   body: string;
 }

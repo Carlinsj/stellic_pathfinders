@@ -1,41 +1,43 @@
 import {
   ArrowRight,
-  Building2,
   CheckCircle2,
-  CircleDot,
-  ClipboardCheck,
+  Circle,
   Clock3,
-  UserCheck,
+  LockKeyhole,
+  ShieldCheck,
+  UserRoundCheck,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { PageHeader, StatusBadge } from "../components/ui";
 import { useDemo } from "../state/DemoContext";
+import { roomForTenant } from "../tenancy/tenantConfigs";
 
 export function CasePage() {
-  const { hasRun, runDemo, caseState, updateCase } = useDemo();
-  const navigate = useNavigate();
-  const activeCase = caseState ?? {
-    id: "RR-1042",
-    compatibilityCheckId: "check-maya-815",
-    status: "open" as const,
-    assignedTeam: "Accessibility Operations",
-    proposedRoomId: "room-812",
-    createdAt: "2026-07-29T15:14:00.000Z",
-  };
+  const {
+    hasRun,
+    runDemo,
+    tenant,
+    caseState,
+    updateCase,
+    workflowInstance,
+    completeWorkflowStep,
+  } = useDemo();
+  const location = useLocation();
+  const isStudent = location.pathname.includes("/student/");
 
-  const assign = () => {
+  useEffect(() => {
     if (!hasRun) runDemo();
-    updateCase({ status: "in_review", assignedTeam: "Accessibility Operations · Alex Ortiz" });
-  };
-  const verify = () => {
-    if (!hasRun) runDemo();
-    updateCase({ status: "awaiting_verification" });
-  };
+  }, [hasRun, runDemo]);
+
+  const scenario = tenant.scenario;
+  const proposed = roomForTenant(tenant, scenario.recommendedRoomId);
+  const status = caseState?.status ?? "open";
+
   const resolve = () => {
-    if (!hasRun) runDemo();
     updateCase({
       status: "resolved",
-      resolution: "Room 812 confirmed by authorised registrar",
+      resolution: `Move ${scenario.course.courseCode} to ${proposed.roomNumber}`,
       resolvedAt: new Date().toISOString(),
     });
   };
@@ -43,62 +45,73 @@ export function CasePage() {
   return (
     <div className="page">
       <PageHeader
-        eyebrow={`REMEDIATION CASE · ${activeCase.id}`}
-        title="Restore classroom access before the next meeting"
-        description="This case coordinates the operational response without exposing a student’s diagnosis or full requirement profile."
-        actions={<StatusBadge status={activeCase.status} />}
+        eyebrow={`${tenant.shortName.toUpperCase()} · ${tenant.terminology.caseLabel.toUpperCase()} ${scenario.caseId}`}
+        title={status === "resolved" ? "Compatible room confirmed" : "Coordinate the room resolution"}
+        description={`This case uses a frozen snapshot of ${tenant.workflow.name}, version ${workflowInstance?.definitionVersion ?? tenant.workflow.version}.`}
+        actions={<StatusBadge status={status} />}
       />
 
-      <div className="case-layout">
-        <div className="case-primary">
-          <section className="case-overview">
-            <div className="case-overview-icon"><ClipboardCheck /></div>
-            <div>
-              <p className="eyebrow">REQUESTED ACTION</p>
-              <h2>Reassign CS-GY 6033 from Room 815 to Room 812</h2>
-              <p>Room 815 fails 4 required classroom features. Room 812 is available, appropriately sized, and passes all 5 required feature checks.</p>
-            </div>
-          </section>
+      <div className="case-grid">
+        <section className="case-main">
+          <div className="case-summary-bar">
+            <span><strong>{scenario.course.courseCode}</strong><small>{scenario.course.title}</small></span>
+            <ArrowRight size={16} />
+            <span><strong>{roomForTenant(tenant, scenario.replacementRoomId).roomNumber}</strong><small>Needs action</small></span>
+            <ArrowRight size={16} />
+            <span><strong>{proposed.roomNumber}</strong><small>Recommended</small></span>
+          </div>
 
-          <section className="case-section">
-            <div className="section-heading-row"><div><p className="eyebrow">CASE TIMELINE</p><h2>Detection to resolution</h2></div><span className="muted-text">Auto-updating demo</span></div>
-            <ol className="timeline">
-              <li className="complete">
-                <span><CheckCircle2 /></span>
-                <div><strong>Room change detected</strong><p>Room 202 → Room 815 for CS-GY 6033</p><small>Jul 29 · 11:14 AM · Registrar feed</small></div>
-              </li>
-              <li className="complete">
-                <span><CheckCircle2 /></span>
-                <div><strong>Operational check completed</strong><p>4 required features were not preserved</p><small>Jul 29 · 11:14 AM · RoomReady engine v1.0.0</small></div>
-              </li>
-              <li className={activeCase.status !== "open" ? "complete" : "current"}>
-                <span>{activeCase.status !== "open" ? <CheckCircle2 /> : <CircleDot />}</span>
-                <div><strong>Coordinator review</strong><p>{activeCase.assignedTeam}</p><small>{activeCase.status === "open" ? "Awaiting assignment" : "Review in progress"}</small></div>
-              </li>
-              <li className={activeCase.status === "resolved" ? "complete" : "pending"}>
-                <span>{activeCase.status === "resolved" ? <CheckCircle2 /> : <Clock3 />}</span>
-                <div><strong>Final room confirmation</strong><p>{activeCase.resolution ?? "Authorised registrar approval required"}</p><small>{activeCase.status === "resolved" ? "Completed in demo" : "Target: Aug 3 · 5:00 PM"}</small></div>
-              </li>
+          <section className="timeline-card">
+            <div className="section-heading-row"><div><p className="eyebrow">TENANT WORKFLOW</p><h2>{tenant.workflow.name}</h2></div><span className="version-chip">Snapshot v{workflowInstance?.definitionVersion ?? tenant.workflow.version}</span></div>
+            <ol className="workflow-timeline">
+              {(workflowInstance?.steps ?? tenant.workflow.steps.map((step, index) => ({
+                stepId: step.id,
+                label: step.label,
+                status: index === 0 ? "active" as const : "pending" as const,
+              }))).map((step, index) => (
+                <li key={step.stepId} className={`workflow-${step.status}`}>
+                  <span>{step.status === "completed" || status === "resolved" ? <CheckCircle2 /> : step.status === "active" ? <Clock3 /> : <Circle />}</span>
+                  <div><strong>{index + 1}. {step.label}</strong><small>{step.status === "active" ? "Current step" : step.status}</small></div>
+                </li>
+              ))}
             </ol>
+            {!isStudent && status !== "resolved" && (
+              <button className="button button-secondary" type="button" onClick={completeWorkflowStep}>
+                <UserRoundCheck size={16} /> Complete active step
+              </button>
+            )}
           </section>
-        </div>
 
-        <aside className="case-sidebar">
-          <section className="case-meta">
-            <p className="eyebrow">CASE DETAILS</p>
-            <dl>
-              <div><dt>Responsible team</dt><dd>{activeCase.assignedTeam}</dd></div>
-              <div><dt>Priority</dt><dd>Before next class</dd></div>
-              <div><dt>Proposed room</dt><dd>Room 812</dd></div>
-              <div><dt>Deadline</dt><dd>Aug 3 · 5:00 PM</dd></div>
+          <section className="resolution-card">
+            <span className="resolution-icon"><ShieldCheck /></span>
+            <div><p className="eyebrow">RECOMMENDED RESOLUTION</p><h2>Assign {proposed.roomNumber}</h2><p>All {scenario.requirements.length} active requirements pass. Scheduling, capacity, and inventory are tenant-scoped.</p></div>
+            {!isStudent && status !== "resolved" ? (
+              <button className="button button-primary" type="button" onClick={resolve}>Confirm &amp; resolve <CheckCircle2 size={16} /></button>
+            ) : (
+              <StatusBadge status="resolved" />
+            )}
+          </section>
+        </section>
+
+        <aside className="case-aside">
+          <section className="summary-card">
+            <p className="eyebrow">OWNERSHIP</p>
+            <dl className="case-details-list">
+              <div><dt>Current owner</dt><dd>{tenant.terminology.accessibilityOfficeShort}</dd></div>
+              <div><dt>Scheduling</dt><dd>{tenant.terminology.schedulingOffice}</dd></div>
+              <div><dt>Workflow version</dt><dd>{workflowInstance?.definitionVersion ?? tenant.workflow.version}</dd></div>
+              <div><dt>Tenant</dt><dd>{tenant.shortName}</dd></div>
             </dl>
           </section>
-          <section className="case-actions">
-            <p className="eyebrow">CASE ACTIONS</p>
-            <button type="button" onClick={assign}><UserCheck size={17} /><span><strong>Assign to me</strong><small>Begin coordinator review</small></span><ArrowRight size={16} /></button>
-            <button type="button" onClick={() => navigate("/app/alternatives")}><Building2 size={17} /><span><strong>Review Room 812</strong><small>Open room comparison</small></span><ArrowRight size={16} /></button>
-            <button type="button" onClick={verify}><Clock3 size={17} /><span><strong>Request verification</strong><small>Send facilities task</small></span><ArrowRight size={16} /></button>
-            <button type="button" className="resolve-action" onClick={resolve}><CheckCircle2 size={17} /><span><strong>Confirm & resolve</strong><small>Authorised demo action</small></span><ArrowRight size={16} /></button>
+          <section className="summary-card">
+            <p className="eyebrow">PRIVACY BOUNDARY</p>
+            <p className="private-note"><LockKeyhole size={15} /> Instructors see only the operational notice. The feature checklist stays with authorised staff and the student.</p>
+            <Link className="text-link" to={`/${tenant.slug}/admin/notifications`}>Preview role messages <ArrowRight size={15} /></Link>
+          </section>
+          <section className="summary-card">
+            <p className="eyebrow">DEMO RECORDS</p>
+            <div className="case-mini"><span className="case-mini-icon"><Clock3 size={18} /></span><span><strong>{scenario.openCaseLabel}</strong><small>Open · synthetic</small></span></div>
+            <div className="case-mini"><span className="case-mini-icon"><CheckCircle2 size={18} /></span><span><strong>{scenario.completedCaseLabel}</strong><small>Completed · synthetic</small></span></div>
           </section>
         </aside>
       </div>

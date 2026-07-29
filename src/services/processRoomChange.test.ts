@@ -45,7 +45,7 @@ describe("room-change processing", () => {
   it("restores the expected seed assignment on demo reset", () => {
     expect(initialDemoState).toMatchObject({
       hasRun: false,
-      assignmentRoomId: "room-202",
+      assignmentRoomId: "nyu-room-202",
       roomOverrides: {},
     });
   });

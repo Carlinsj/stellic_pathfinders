@@ -13,6 +13,7 @@ export const STALE_AFTER_DAYS = 180;
 interface EvaluateInput {
   requirements: FunctionalRequirement[];
   roomFeatures: RoomFeature[];
+  featureLabelMap?: Partial<Record<FunctionalRequirement["featureType"], string>>;
   evaluatedAt?: string;
   staleAfterDays?: number;
 }
@@ -58,6 +59,7 @@ function resultReason(
 export function evaluateCompatibility({
   requirements,
   roomFeatures,
+  featureLabelMap,
   evaluatedAt = new Date().toISOString(),
   staleAfterDays = STALE_AFTER_DAYS,
 }: EvaluateInput): CompatibilityResult {
@@ -76,13 +78,14 @@ export function evaluateCompatibility({
       ? daysBetween(evaluatedDate, new Date(selected.verifiedAt)) > staleAfterDays
       : false;
 
+    const label = featureLabelMap?.[requirement.featureType] ?? featureLabels[requirement.featureType];
     return {
       featureType: requirement.featureType,
-      label: featureLabels[requirement.featureType],
+      label,
       availability,
       stale,
       required: requirement.requirementLevel === "required",
-      reason: resultReason(availability, featureLabels[requirement.featureType], selected?.notes),
+      reason: resultReason(availability, label, selected?.notes),
     };
   });
 

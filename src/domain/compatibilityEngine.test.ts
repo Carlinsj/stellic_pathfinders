@@ -12,6 +12,7 @@ function requirement(
 ): FunctionalRequirement {
   return {
     id: featureType,
+    universityId: "test-university",
     studentId: "student",
     featureType,
     requirementLevel,
@@ -26,6 +27,7 @@ function feature(
   verifiedAt = fresh,
 ): RoomFeature {
   return {
+    universityId: "test-university",
     roomId: "room",
     featureType,
     availability,

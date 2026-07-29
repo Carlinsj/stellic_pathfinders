@@ -1,96 +1,105 @@
 # RoomReady
 
-RoomReady preserves approved classroom access requirements when a university changes a course’s assigned room.
+RoomReady preserves approved classroom access requirements when a university changes a course’s assigned room. It now runs as one configurable multi-university platform: one React application, one deterministic compatibility engine, and strictly separated tenant data, terminology, catalogues, workflows, notification templates, and themes.
 
-The competition demo follows Maya Chen in CS-GY 6033. The course moves from Room 202, which supports all five of Maya’s functional requirements, to incompatible Room 815. RoomReady explains four failed checks, recommends fully compatible Room 812, creates a remediation case, and generates role-specific privacy-safe notifications.
+The competition build includes two complete synthetic tenants:
 
-RoomReady performs operational checks. It does not make legal determinations, store diagnoses, or autonomously approve a final room reassignment.
+- New York University: Maya Chen, CS-GY 6033, Room 202 → Room 815, with Room 812 recommended.
+- University of Illinois Urbana-Champaign: Jordan Patel, CS 225, DCL 1320 → DCL 1310, with DCL 1327 recommended.
 
-## Quick start
+These are demonstration records. Neither university’s adoption, verification, or endorsement is implied.
 
-Requirements:
+## Local setup
 
-- Node.js 22.13 or newer
-- npm 10 or newer
+Requirements: Node.js 22.13 or newer and npm.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open the URL printed by Vite. No environment variables, accounts, or external APIs are required for the local demo.
+Open [http://127.0.0.1:5173](http://127.0.0.1:5173). No credentials are required for the local competition demo.
 
-## Competition demo in under two minutes
-
-1. Open the landing page and select **Run competition demo**.
-2. On the simulator, select **Run competition demo** again.
-3. Point out the live workflow: one affected student, five checks, case RR-1042, and Room 812.
-4. Open the room-change alert to show the Room 202 → Room 815 comparison and four explained failures.
-5. Open the room comparison to show that only fully compatible rooms are ranked.
-6. Open the remediation case and select **Confirm & resolve**.
-7. Open notification previews and show the instructor’s minimum-necessary notice.
-8. Select **Reset demo** to restore Room 202.
-
-## Quality commands
+Optional Supabase setup:
 
 ```bash
-npm run typecheck
-npm run lint
-npm run test
-npm run build
+cp .env.example .env
+supabase start
+supabase db reset
+```
+
+Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` only when using a Supabase instance. Keep the service-role key server-side.
+
+## Routes
+
+- `/` — platform landing page
+- `/nyu` and `/uiuc` — university entry pages
+- `/nyu/student` and `/uiuc/student` — tenant student experiences
+- `/nyu/admin` and `/uiuc/admin` — tenant room-change simulators
+- `/:tenant/admin/setup` — seven-step university onboarding
+- `/:tenant/admin/case`, `rooms/:roomId`, and `notifications` — tenant operations
+
+Old single-tenant routes redirect to the NYU demo for backwards compatibility.
+
+## Repository structure
+
+```text
+src/
+  domain/       deterministic compatibility and ranking rules
+  tenancy/      tenant resolution, permissions, themes, and university data
+  workflows/    versioned workflow definitions and instances
+  imports/      validated room-inventory CSV ingestion
+  pages/        shared tenant-aware student and administrator screens
+supabase/
+  migrations/   normalized schema and tenant-aware RLS
+  seed.sql      deterministic synthetic competition data
+tests/e2e/      desktop and mobile competition flows
+docs/           architecture, security, onboarding, and demo guides
+```
+
+Generated dependencies, builds, browser-test results, and repository-analysis output are excluded through `.gitignore`.
+
+## Validation
+
+```bash
+npm run quality
 npm run test:e2e
 ```
 
-The unit suite covers the deterministic compatibility engine, alternative-room ranking, the room-change workflow, notification privacy, and demo reset state. Playwright covers the complete competition workflow on desktop and mobile.
-
-## Architecture
-
-The project is a strict TypeScript React application built with Vite, React Router, TanStack Query, Tailwind CSS, Zod, Vitest, Playwright, and a Supabase-ready repository layer.
-
-- `src/pages` — presentation routes
-- `src/components` — accessible interface primitives and application shell
-- `src/domain` — pure compatibility and ranking logic
-- `src/services` — room-change orchestration and notifications
-- `src/repositories` — local-demo and Supabase adapters
-- `src/data` — deterministic synthetic seed
-- `src/state` — demo state and reset behavior
-- `supabase` — schema migration, RLS policies, seed, and reset SQL
-- `docs` — architecture, data model, and demo notes
-
-See [Architecture](docs/ARCHITECTURE.md) and [Data model](docs/DATA_MODEL.md) for more detail.
-
-## Supabase setup
-
-The app deliberately runs without Supabase so judges can use it offline. To connect a project:
-
-1. Create a Supabase project or start Supabase locally.
-2. Apply `supabase/migrations/202607290001_roomready_schema.sql`.
-3. Create synthetic auth users for each seeded role.
-4. Apply `supabase/seed.sql` and add any user-linked fixtures.
-5. Copy `.env.example` to `.env.local` and set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
-6. Keep the service-role key server-side; never expose it to Vite.
-
-Realtime is enabled for room changes, compatibility checks, remediation cases, and notifications. The core workflow remains directly callable for tests and local demo scripts.
-
-## Deployment
-
-Build with `npm run build` and serve the generated `dist` directory with SPA route fallback to `index.html`. Set the two public Supabase variables only when using a hosted backend. The core demo has no paid-service dependency.
-
-For a static host, use:
-
-- Build command: `npm run build`
-- Output directory: `dist`
-- Node version: `22`
-- Rewrite: all unmatched routes → `/index.html`
+`quality` runs TypeScript, ESLint, 32 unit/integration tests, and the production build. Playwright covers desktop and mobile NYU/UIUC flows, tenant switching, setup/publish/reset, unknown tenant blocking, and automated accessibility scans.
 
 ## Privacy and safety
 
-- Functional room requirements only; no medical diagnoses
-- Role-specific disclosure
-- Instructor messages omit the student name and full feature profile
-- Staff confirmation required before final reassignment
-- Row-level security policies for all Supabase tables
-- Audit events for significant reads and changes
-- Synthetic demo data throughout
+- Compatibility decisions are deterministic and never made by an LLM.
+- Required features are hard eligibility gates; unknown data requests verification.
+- The application stores functional classroom requirements, not diagnoses.
+- Instructor messages contain only minimum-necessary operational information.
+- Final room changes require an authorised staff action.
+- All included university, student, room, and course records are synthetic.
 
-Automated checks help identify accessibility regressions but do not establish full accessibility compliance or institutional certification.
+## Architecture
+
+- `src/tenancy` resolves the active university, applies theme tokens, exposes typed configuration, enforces role checks, and scopes in-memory queries.
+- `src/domain` contains the shared pure compatibility and ranking engine. It compares stable feature concepts while rendering tenant-specific labels.
+- `src/workflows` creates immutable workflow snapshots and advances configured step instances.
+- `src/imports/roomCsv.ts` validates room imports with Zod and preserves valid rows when other rows fail.
+- `src/state/DemoContext.tsx` holds versioned, tenant-separated, device-local competition state. Production records belong in Supabase.
+- `supabase/migrations/202607290002_multi_university.sql` adds university scoping, configuration entities, workflow history, and strict RLS.
+
+See [Architecture](docs/ARCHITECTURE.md), [Data model](docs/DATA_MODEL.md), [Tenant isolation](docs/TENANT_ISOLATION.md), and [RLS](docs/ROW_LEVEL_SECURITY.md).
+
+## Add a third university
+
+1. Create the university metadata row and an admin through the secure provisioning path.
+2. Complete `/:tenant/admin/setup`: identity, offices, feature mappings, inventory, workflow, preview, and publish.
+3. Map each campus feature key to an existing stable concept. Add a new stable concept to `FeatureType` only when the core semantics are genuinely new.
+4. Import rooms using the documented CSV or a scheduling adapter.
+5. Publish notification templates and a versioned workflow.
+6. Add the slug to the production tenant resolver and seed/test fixtures. The compatibility and ranking algorithms require no campus-specific changes.
+
+## Documentation
+
+- [Competition demo](docs/COMPETITION_DEMO.md)
+- [University onboarding](docs/UNIVERSITY_ONBOARDING.md)
+- [CSV import](docs/CSV_IMPORT.md)
+- [Known limitations](docs/KNOWN_LIMITATIONS.md)

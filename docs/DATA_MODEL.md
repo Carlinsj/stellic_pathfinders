@@ -1,33 +1,38 @@
 # Data model
 
-The normalized Supabase schema is defined in `supabase/migrations/202607290001_roomready_schema.sql`.
+The base schema is in `202607290001_roomready_schema.sql`; `202607290002_multi_university.sql` upgrades it to tenant isolation.
 
-## Identity and requirements
+## Tenant metadata
 
-- `users` maps authenticated people to one of six supported roles.
-- `student_profiles` stores only a synthetic external reference and notification preference.
-- `functional_requirements` stores active functional feature types, required/preferred level, and coordinator-only notes. There is no diagnosis column.
+`universities` stores globally unique slug/domain, theme colours, timezone, office names, support contact, and activation status.
 
-## Spaces and capabilities
+## Tenant-owned records
 
-- `buildings` stores campus locations.
-- `rooms` stores capacity, floor, room type, and verification state.
-- `room_features` stores feature availability, quantity, evidence source, time, and notes. Multiple records can preserve history; the engine deterministically applies the safest current interpretation.
+`university_id` is indexed on users, student profiles, functional requirements, buildings, rooms, room features, courses, sections, enrolments, assignments, change events, compatibility checks, remediation cases, notifications, audit events, feature outages, catalogues, templates, and every workflow table.
 
-## Courses and assignments
+Natural uniqueness is tenant-scoped:
 
-- `courses` and `sections` model a scheduled class and instructor.
-- `enrollments` connect student profiles to sections.
-- `room_assignments` retain current and historical locations using effective ranges.
-- `room_change_events` record each detected move and its source.
+- user email;
+- student external reference;
+- course code;
+- building/room number;
+- section code;
+- catalogue key and stable concept;
+- workflow name/version;
+- notification template key.
 
-## Operational response
+## Feature catalogue
 
-- `compatibility_checks` persist pass, fail, and unknown lists with the engine version.
-- `remediation_cases` assign ownership, proposed alternatives, and resolution.
-- `notifications` store role-specific delivery content.
-- `audit_events` record significant actions without unnecessary accommodation detail.
+`feature_catalogue_entries` maps a university `key` and display name to a `stable_concept_key`. The engine uses the stable concept; the UI and imports use tenant wording. Frequency, active status, category, data type, and sort order are configuration.
 
-## Row-level security
+## Operational records
 
-Students can read their own profile, requirements, enrolments, checks, and notifications. Instructors cannot read functional requirements. Coordinators manage requirements and checks; facilities manage room capabilities; registrars manage assignments; authorised staff share case access.
+Rooms store capability records and optional `room_feature_outages`. Room change events create compatibility checks. Incompatible checks create remediation cases and workflow instances.
+
+## Workflow history
+
+`workflow_definitions` and `workflow_steps` contain published configuration. `workflow_instances` store the definition ID, version, and JSON snapshot. `workflow_step_instances` preserve the label, owner, order, and status used by the case.
+
+## Privacy
+
+The schema stores functional requirements, not diagnoses. There is no diagnosis column. Notification content is audience-specific. Audit metadata must avoid unnecessary student detail.

@@ -1,48 +1,50 @@
 # Architecture
 
-RoomReady uses explicit layers so room decisions remain deterministic and independently testable.
+RoomReady is a modular monolith with tenant-aware boundaries around one deterministic core.
 
-## 1. Presentation
+```mermaid
+flowchart LR
+  URL["URL slug / demo persona / user profile"] --> Resolver["Tenant resolver"]
+  Resolver --> Provider["Typed tenant provider + CSS tokens"]
+  Provider --> UI["Shared React pages"]
+  Config["Catalogue, workflow, templates, terminology"] --> Provider
+  UI --> Service["Room-change application service"]
+  Service --> Engine["Pure compatibility engine"]
+  Service --> Ranker["Pure eligible-room ranker"]
+  Service --> Workflow["Versioned workflow engine"]
+  Service --> Repository["Tenant-scoped repository"]
+  Repository --> RLS["Supabase RLS + university_id"]
+```
 
-React Router routes in `src/pages` render the landing page, student dashboard, room-change alert, comparison, remediation case, simulator, room capability record, and notification previews. `src/components` contains the application shell and accessible status primitives.
+## Tenant layer
 
-## 2. Application services
+`tenantConfigs.ts` contains complete local fixtures for NYU and UIUC. `TenantContext` resolves the first URL segment and exposes only a typed `TenantConfig`. `resolveTenant` also accepts profile, demo, and future domain/SSO signals; a non-platform user conflict is blocked.
 
-`processRoomChange.ts` coordinates the demo workflow:
+The provider defines `--tenant-primary`, `--tenant-secondary`, `--tenant-accent`, and `--tenant-surface`. Components do not contain university colours or office names.
 
-1. Create a room-change event.
-2. Evaluate the replacement room for the affected enrolment.
-3. Rank compatible alternatives.
-4. Create a remediation case when needed.
-5. Create audience-specific notifications.
-6. Produce audit events.
+## Domain layer
 
-It is callable directly by tests, UI actions, a future edge function, or a registrar adapter.
+`evaluateCompatibility` compares active functional requirements to room features by stable `FeatureType`. Required unavailable or temporarily unavailable features fail; unknown data requests verification; preferences do not fail a room. Optional label maps affect explanations only.
 
-## 3. Compatibility engine
+`rankAlternativeRooms` first requires full compatibility and schedule availability. Eligible rooms are then scored using capacity, building continuity, travel, verification freshness, and disruption.
 
-`compatibilityEngine.ts` is a pure TypeScript function. It sorts input for deterministic output, chooses the safest result for duplicate feature records, applies hard requirement rules, flags stale evidence, and returns human-readable reasons. It has no network, storage, UI, or AI dependency.
+## Workflow layer
 
-`rankRooms.ts` gates on full compatibility and schedule availability before applying an explainable score for capacity, building continuity, travel distance, verification freshness, and disruption.
+A definition is tenant-owned and versioned. Creating an instance deep-copies the definition into `definitionSnapshot`. Step instances use pending, active, blocked, completed, skipped, or cancelled. Completing the active step deterministically activates the next pending step.
 
-## 4. Database and repositories
+## Presentation
 
-The local demo uses typed seed data and browser storage for resettable device-local state. `RoomReadyRepository` defines the persistence boundary. The Supabase client adapter is enabled only when public connection values exist.
+The same student, alert, comparison, case, room, notification, simulator, and setup components render both universities. Routes are slug-prefixed. The competition switcher changes both tenant and persona and displays a transition shield while the provider changes.
 
-The migration defines the normalized PostgreSQL schema, RLS policies, and realtime publication.
+## Persistence
 
-## 5. Notifications
-
-`NotificationAdapter` supports in-app, preview, and console transports. Template-generated copy is the default. A future AI copy adapter may only rewrite already-determined facts and must fall back to these templates.
-
-## 6. Realtime
-
-Hosted implementations subscribe to room-change events, compatibility checks, remediation cases, and notifications. The UI’s demo state mirrors this event sequence synchronously to remain reliable offline.
+Browser storage is intentionally limited to tenant-keyed, resettable competition state. Production state belongs in Supabase. The normalized schema carries `university_id`, scoped constraints, indexes, and RLS on every tenant-owned table.
 
 ## Trust boundaries
 
-- Instructors receive only course-level minimum-necessary notices.
-- Students and accessibility coordinators can see student-specific results.
-- Facilities receive a requirement-level verification task without a diagnosis.
-- Registrars confirm assignments.
-- Audit metadata excludes unnecessary student detail.
+- Students access only their own private records.
+- Instructors receive privacy-safe course-level notices, not feature profiles.
+- Facilities receive room problems and operational feature requirements, never diagnoses.
+- Scheduling staff receive compatibility and room recommendation data.
+- University administrators manage their configuration.
+- Platform administrators manage university metadata without automatic student access.

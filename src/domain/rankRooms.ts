@@ -11,6 +11,7 @@ interface RankInput {
   requirements: FunctionalRequirement[];
   course: CourseSection;
   currentRoom: Room;
+  featureLabelMap?: Partial<Record<FunctionalRequirement["featureType"], string>>;
   evaluatedAt?: string;
 }
 
@@ -19,6 +20,7 @@ export function rankAlternativeRooms({
   requirements,
   course,
   currentRoom,
+  featureLabelMap,
   evaluatedAt = new Date().toISOString(),
 }: RankInput): RankedRoom[] {
   return rooms
@@ -26,6 +28,7 @@ export function rankAlternativeRooms({
       const compatibility = evaluateCompatibility({
         requirements,
         roomFeatures: room.features,
+        featureLabelMap,
         evaluatedAt,
       });
       const eligible = compatibility.status === "compatible" && room.scheduleAvailable;

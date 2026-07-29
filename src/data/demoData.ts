@@ -14,6 +14,7 @@ const roomFeature = (
   availability: RoomFeature["availability"],
   notes?: string,
 ): RoomFeature => ({
+  universityId: "11111111-1111-4111-8111-111111111111",
   roomId,
   featureType,
   availability,
@@ -25,6 +26,7 @@ const roomFeature = (
 
 export const maya: Student = {
   id: "student-maya",
+  universityId: "11111111-1111-4111-8111-111111111111",
   email: "maya.chen@example.edu",
   fullName: "Maya Chen",
   role: "student",
@@ -33,6 +35,7 @@ export const maya: Student = {
 export const buildings: Building[] = [
   {
     id: "building-2",
+    universityId: "11111111-1111-4111-8111-111111111111",
     name: "2 MetroTech Center",
     address: "2 MetroTech Center, Brooklyn, NY",
     latitude: 40.6935,
@@ -40,6 +43,7 @@ export const buildings: Building[] = [
   },
   {
     id: "building-6",
+    universityId: "11111111-1111-4111-8111-111111111111",
     name: "6 MetroTech Center",
     address: "6 MetroTech Center, Brooklyn, NY",
     latitude: 40.6941,
@@ -55,6 +59,7 @@ export const mayaRequirements: FunctionalRequirement[] = [
   "electrical_outlet",
 ].map((featureType, index) => ({
   id: `maya-requirement-${index + 1}`,
+  universityId: "11111111-1111-4111-8111-111111111111",
   studentId: maya.id,
   featureType: featureType as FunctionalRequirement["featureType"],
   requirementLevel: "required",
@@ -64,6 +69,7 @@ export const mayaRequirements: FunctionalRequirement[] = [
 
 export const course: CourseSection = {
   id: "section-csgy6033-a",
+  universityId: "11111111-1111-4111-8111-111111111111",
   courseCode: "CS-GY 6033",
   title: "Design and Analysis of Algorithms",
   section: "A",
@@ -83,6 +89,7 @@ const allRequiredAvailable = (roomId: string): RoomFeature[] =>
 export const rooms: Room[] = [
   {
     id: "room-202",
+    universityId: "11111111-1111-4111-8111-111111111111",
     buildingId: "building-2",
     roomNumber: "202",
     capacity: 48,
@@ -97,6 +104,7 @@ export const rooms: Room[] = [
   },
   {
     id: "room-815",
+    universityId: "11111111-1111-4111-8111-111111111111",
     buildingId: "building-2",
     roomNumber: "815",
     capacity: 56,
@@ -132,6 +140,7 @@ export const rooms: Room[] = [
   },
   {
     id: "room-812",
+    universityId: "11111111-1111-4111-8111-111111111111",
     buildingId: "building-2",
     roomNumber: "812",
     capacity: 52,
@@ -146,6 +155,7 @@ export const rooms: Room[] = [
   },
   {
     id: "room-804",
+    universityId: "11111111-1111-4111-8111-111111111111",
     buildingId: "building-2",
     roomNumber: "804",
     capacity: 44,
@@ -165,6 +175,7 @@ export const rooms: Room[] = [
   },
   {
     id: "room-606",
+    universityId: "11111111-1111-4111-8111-111111111111",
     buildingId: "building-6",
     roomNumber: "606",
     capacity: 72,
@@ -179,6 +190,7 @@ export const rooms: Room[] = [
   },
   {
     id: "room-405",
+    universityId: "11111111-1111-4111-8111-111111111111",
     buildingId: "building-2",
     roomNumber: "405",
     capacity: 38,
