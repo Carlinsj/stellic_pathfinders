@@ -182,7 +182,7 @@ test('staff can restore a bounded number of equipment units and reopen a facilit
   await page.goto('/nyu/staff-login');
   await page.getByRole('button', { name: /Sam Ortiz/ }).click();
   const inventory = page.locator('.equipment-control-panel');
-  const restoreQuantity = page.getByLabel('Units restored');
+  const restoreQuantity = page.getByLabel('Units repaired');
   await expect(inventory).toContainText('2 out of service');
   await expect(restoreQuantity).toHaveAttribute('max', '2');
 
