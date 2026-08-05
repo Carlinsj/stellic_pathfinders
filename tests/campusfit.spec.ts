@@ -85,6 +85,40 @@ test('activity-only planning ranks compatible facilities without a workout focus
   await expect(page.locator('.upcoming-strip')).toContainText('Badminton');
 });
 
+test('students can plan a workout with multiple muscle groups', async ({ page }) => {
+  await page.goto('/nyu/login');
+  await page.getByRole('button', { name: /Maya Chen/ }).click();
+  await page.getByRole('link', { name: 'Plan' }).first().click();
+  const focusPicker = page.getByRole('group', { name: 'Muscle groups' });
+  await expect(focusPicker.getByRole('button', { name: 'Back', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await focusPicker.getByRole('button', { name: 'Chest', exact: true }).click();
+  await focusPicker.getByRole('button', { name: 'Legs', exact: true }).click();
+  await focusPicker.getByRole('button', { name: 'Back', exact: true }).click();
+  await expect(focusPicker.getByRole('button', { name: 'Chest', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(focusPicker.getByRole('button', { name: 'Legs', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: /Continue/ }).click();
+  await page.getByRole('button', { name: /Continue/ }).click();
+  await page.getByRole('button', { name: /Continue/ }).click();
+  await expect(page.locator('.plan-review-hero')).toContainText('Chest + Legs');
+  await page.getByRole('button', { name: /Save visit plan/ }).click();
+  await expect(page.locator('.upcoming-strip')).toContainText('Chest + Legs');
+});
+
+test('quick check-in accepts multiple muscle groups', async ({ page }) => {
+  await page.goto('/nyu/login');
+  await page.getByRole('button', { name: /Maya Chen/ }).click();
+  await page.getByRole('button', { name: 'I’m here', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: /Continue/ }).click();
+  const focusPicker = dialog.getByRole('group', { name: 'Muscle groups' });
+  await focusPicker.getByRole('button', { name: 'Chest', exact: true }).click();
+  await focusPicker.getByRole('button', { name: 'Legs', exact: true }).click();
+  await focusPicker.getByRole('button', { name: 'General workout', exact: true }).click();
+  await dialog.getByRole('button', { name: /Continue/ }).click();
+  await dialog.getByRole('button', { name: /Review/ }).click();
+  await expect(dialog).toContainText('Chest + Legs');
+});
+
 test('NYU home surfaces all four verified facilities', async ({ page }) => {
   await page.goto('/nyu/login');
   await page.getByRole('button', { name: /Maya Chen/ }).click();

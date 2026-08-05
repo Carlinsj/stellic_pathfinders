@@ -149,6 +149,14 @@ p { color: var(--muted); line-height: 1.55; }
 .active-timer b { color: white; font-size: .8rem; }
 .active-visit-pulse svg, .active-visit-main .data-label { color: #d8b8e8; }
 .active-visit-pulse span { border-color: #b778d1; }
+.active-visit-card .active-editors { display: grid; gap: 14px; }
+.active-visit-card .workout-focus-picker legend { color: white; }
+.active-visit-card .workout-focus-picker > p { color: #bbb4bf; }
+.active-visit-card .workout-focus-options { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.active-visit-card .workout-focus-options button { border-color: rgba(255,255,255,.12); color: #ddd8e0; background: rgba(255,255,255,.07); }
+.active-visit-card .workout-focus-options button > span { color: #d8b8e8; background: rgba(216,184,232,.12); }
+.active-visit-card .workout-focus-options button.is-selected { border-color: #bd83d4; color: white; background: rgba(87,6,140,.45); }
+.active-visit-card .workout-focus-options button.is-selected > span { color: #2f2934; background: #d8b8e8; }
 .active-actions .button--primary { color: white; background: var(--violet); }
 .active-actions .button--secondary { background: rgba(255,255,255,.09); }
 .upcoming-strip { padding: 19px 20px; border-color: var(--line); border-radius: 20px; background: var(--card); box-shadow: var(--shadow-sm); }
@@ -253,6 +261,18 @@ p { color: var(--muted); line-height: 1.55; }
 .segmented-control { padding: 4px; border-radius: 14px; background: #efecf0; }
 .segmented-control button { min-height: 42px; border-radius: 10px; }
 .segmented-control button.is-active { color: white; background: var(--violet); box-shadow: none; }
+.workout-focus-picker { margin: 0 0 22px; padding: 0; border: 0; }
+.workout-focus-picker legend { width: 100%; color: var(--ink); font-size: .82rem; font-weight: 850; }
+.workout-focus-picker > p { margin: 5px 0 12px; color: var(--muted); font-size: .73rem; line-height: 1.45; }
+.workout-focus-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.workout-focus-options button { min-height: 54px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 14px; display: flex; align-items: center; gap: 8px; text-align: left; color: var(--ink-soft); background: #fcfbf8; font-size: .72rem; font-weight: 750; }
+.workout-focus-options button > span { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; flex: 0 0 auto; color: var(--violet); background: var(--violet-soft); font-size: .68rem; font-weight: 850; }
+.workout-focus-options button.is-selected { border-color: #a96ac5; color: var(--violet); background: var(--violet-soft); box-shadow: inset 0 0 0 1px #a96ac5; }
+.workout-focus-options button.is-selected > span { color: white; background: var(--violet); }
+.workout-focus-picker--compact { margin-bottom: 0; }
+.workout-focus-picker--compact .workout-focus-options { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.workout-focus-picker--compact .workout-focus-options button { min-height: 44px; padding: 6px 8px; border-radius: 12px; }
+.workout-focus-picker--compact .workout-focus-options button > span { width: 24px; height: 24px; border-radius: 8px; }
 .choice-grid button { min-height: 78px; border-color: var(--line); border-radius: 15px; background: #fcfbf8; }
 .choice-grid button.is-selected { border-color: #b888cd; color: var(--violet); background: var(--violet-soft); box-shadow: inset 0 0 0 1px #b888cd; }
 .choice-icon { color: var(--violet); background: white; }
@@ -315,6 +335,8 @@ p { color: var(--muted); line-height: 1.55; }
 .sheet-choice-list button > svg { width: 18px; color: var(--violet); }
 .checkin-step label { display: grid; gap: 7px; color: var(--ink-soft); font-size: .68rem; font-weight: 800; }
 .checkin-step select { min-height: 48px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 12px; background: white; }
+.checkin-step .workout-focus-picker legend { font-size: .76rem; }
+.checkin-step .workout-focus-picker > p { font-size: .7rem; }
 .sheet-step-actions { display: grid; grid-template-columns: auto 1fr; gap: 9px; }
 .sheet-step-actions .button:last-child { justify-self: stretch; }
 .sheet-helper { margin: 0; padding: 13px; border-radius: 13px; background: #f2eff2; font-size: .7rem; }
@@ -449,6 +471,9 @@ p { color: var(--muted); line-height: 1.55; }
   .wizard-card { min-height: 0; border-radius: 22px; }
   .wizard-panel { padding: 25px 18px; }
   .wizard-heading { align-items: start; }
+  .workout-focus-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .workout-focus-picker--compact .workout-focus-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .active-visit-card .workout-focus-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .choice-grid { grid-template-columns: repeat(2, 1fr); }
   .choice-grid--small { grid-template-columns: repeat(2, 1fr); }
   .day-picker { grid-template-columns: 1fr 1fr; }

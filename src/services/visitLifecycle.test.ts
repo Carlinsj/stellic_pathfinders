@@ -4,7 +4,7 @@ import { addMinutes } from '../lib/format';
 import { getLiveAggregate } from './liveAggregation';
 import {
   VisitLifecycleError, autoCloseStaleVisits, cancelVisit, canTransition, changeActivity, changeFacility,
-  changeWorkoutFocus, checkInPlannedVisit, checkOutVisit, createPlan, delayVisit, expirePastPlans,
+  changeWorkoutFocus, changeWorkoutFocuses, checkInPlannedVisit, checkOutVisit, createPlan, delayVisit, expirePastPlans,
   extendVisit, spontaneousCheckIn
 } from './visitLifecycle';
 
@@ -29,6 +29,21 @@ describe('visit state machine', () => {
     expect(delayed.visits.at(-1)?.status).toBe('delayed');
     expect(Date.parse(delayed.visits.at(-1)!.plannedArrivalAt!) - Date.parse(visit.plannedArrivalAt!)).toBe(20 * 60_000);
     expect(delayed.history.at(-1)?.newStatus).toBe('delayed');
+  });
+
+  it('stores multiple muscle groups and combines their equipment needs', () => {
+    const initial = createDemoState('nyu');
+    const planned = createPlan(initial, {
+      ...draft,
+      workoutFocuses: ['chest', 'legs'],
+      primaryWorkoutFocus: undefined,
+      secondaryFocuses: undefined,
+      plannedArrivalAt: addMinutes(initial.now, 30)
+    });
+    const visit = planned.visits.at(-1)!;
+    expect(visit.primaryWorkoutFocus).toBe('chest');
+    expect(visit.secondaryFocuses).toEqual(['legs']);
+    expect(visit.equipmentNeeds).toEqual(expect.arrayContaining(['bench', 'squat_rack', 'leg_press']));
   });
 
   it('changes gym only within the current tenant', () => {
@@ -107,7 +122,10 @@ describe('visit state machine', () => {
     expect(Date.parse(extended.visits.at(-1)!.expectedEndAt!) - Date.parse(oldEnd)).toBe(20 * 60_000);
     const focusChanged = changeWorkoutFocus(extended, id, 'arms');
     expect(focusChanged.visits.at(-1)?.primaryWorkoutFocus).toBe('arms');
-    expect(changeActivity(focusChanged, id, 'climbing').visits.at(-1)?.activity).toBe('climbing');
+    const multiFocusChanged = changeWorkoutFocuses(focusChanged, id, ['chest', 'legs']);
+    expect(multiFocusChanged.visits.at(-1)?.secondaryFocuses).toEqual(['legs']);
+    expect(multiFocusChanged.visits.at(-1)?.equipmentNeeds).toEqual(expect.arrayContaining(['bench', 'squat_rack']));
+    expect(changeActivity(multiFocusChanged, id, 'climbing').visits.at(-1)?.activity).toBe('climbing');
   });
 
   it('automatically closes stale visits with reduced historical weight', () => {

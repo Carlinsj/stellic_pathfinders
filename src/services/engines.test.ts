@@ -82,6 +82,27 @@ describe('deterministic demand engines', () => {
     expect(estimate.delayCauses.length).toBeGreaterThan(0);
   });
 
+  it('combines equipment demand for multi-muscle recommendations', () => {
+    const state = createDemoState('nyu');
+    const result = recommendFacilities(state, state.now, ['chest', 'legs'], undefined, 60)
+      .find((item) => item.eligible)!;
+    const equipment = result.equipmentDemand.map((item) => item.equipmentTypeId);
+    expect(equipment).toEqual(expect.arrayContaining(['cable', 'squat_rack']));
+  });
+
+  it('aggregates every selected muscle group without exposing individual visits', () => {
+    const initial = createDemoState('nyu');
+    const checkedIn = spontaneousCheckIn(initial, {
+      facilityId: 'nyu_palladium',
+      intent: 'workout',
+      workoutFocuses: ['chest', 'legs'],
+      expectedDurationMinutes: 60,
+      privacyLevel: 'anonymous_aggregate'
+    });
+    const aggregate = getLiveAggregate(checkedIn, 'nyu_palladium');
+    expect(aggregate.focusCounts.map((item) => item.key)).toEqual(expect.arrayContaining(['chest', 'legs']));
+  });
+
   it('never recommends a facility lacking an essential activity', () => {
     const state = createDemoState('nyu');
     const results = recommendFacilities(state, state.now, undefined, 'badminton', 60);

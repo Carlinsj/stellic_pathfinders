@@ -1,5 +1,6 @@
 import type { DemoState, LiveAggregate } from '../domain/types';
 import { titleCase } from '../data/catalog';
+import { getVisitWorkoutFocuses } from './workoutFocus';
 
 const crowdFromParticipation = (count: number, capacity: number): LiveAggregate['crowdLevel'] => {
   const share = count / Math.max(capacity * 0.08, 1);
@@ -30,7 +31,7 @@ export const getLiveAggregate = (state: DemoState, facilityId: string): LiveAggr
     campusFitCheckIns: active.length,
     crowdLevel: crowdFromParticipation(active.length, facility.capacity),
     confidence: active.length >= 12 ? 'medium' : 'low',
-    focusCounts: aggregateCategory(active.flatMap((visit) => visit.intent === 'workout' && visit.primaryWorkoutFocus ? [visit.primaryWorkoutFocus] : []), state.university.privacyCountThreshold),
+    focusCounts: aggregateCategory(active.flatMap((visit) => visit.intent === 'workout' ? getVisitWorkoutFocuses(visit) : []), state.university.privacyCountThreshold),
     activityCounts: aggregateCategory(active.flatMap((visit) => visit.activity ? [visit.activity] : []), state.university.privacyCountThreshold),
     updatedAt: state.now,
     sourceExplanation: 'Live CampusFit participation combined with synthetic historical patterns. This is not official occupancy.',

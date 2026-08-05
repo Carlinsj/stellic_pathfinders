@@ -1,8 +1,9 @@
 import type { DemoState, FacilityRecommendation } from '../domain/types';
-import { activityEquipment, focusEquipmentWeights } from '../data/catalog';
+import { activityEquipment } from '../data/catalog';
 import { estimateWorkoutDuration } from './durationEstimator';
 import { calculateEquipmentDemand } from './equipmentDemand';
 import { forecastDemand, isFacilityOpen } from './forecasting';
+import { getWorkoutFocusEquipmentKeys, normalizeWorkoutFocuses, type WorkoutFocusInput } from './workoutFocus';
 
 const crowdPenalty = { unknown: 60, low: 0, moderate: 14, busy: 32, very_busy: 55 } as const;
 const demandPenalty = { unknown: 20, low: 0, moderate: 6, high: 14, very_high: 25 } as const;
@@ -49,12 +50,13 @@ export const getRecommendationGuidance = (recommendation: FacilityRecommendation
 export const recommendFacilities = (
   state: DemoState,
   at: string,
-  focus: string | undefined,
+  focus: WorkoutFocusInput,
   activity: string | undefined,
   normalDuration: number,
   requiredEquipment: string[] = []
 ): FacilityRecommendation[] => {
-  const focusNeeds = Object.keys(focusEquipmentWeights[focus ?? ''] ?? {});
+  const selectedFocuses = normalizeWorkoutFocuses(focus);
+  const focusNeeds = getWorkoutFocusEquipmentKeys(selectedFocuses);
   const essentialActivityEquipment = activity ? activityEquipment[activity] ?? [] : [];
   const essential = new Set([...requiredEquipment, ...essentialActivityEquipment]);
   return state.facilities.map((facility) => {
@@ -64,7 +66,7 @@ export const recommendFacilities = (
     const open = isFacilityOpen(facility, at);
     const eligible = supportsActivity && supportsEquipment && open;
     const forecast = forecastDemand(state, facility.id, at);
-    const allDemand = calculateEquipmentDemand(state, facility.id, at, focus, activity);
+    const allDemand = calculateEquipmentDemand(state, facility.id, at, selectedFocuses, activity);
     const relevantKeys = new Set([...focusNeeds, ...essential]);
     const equipmentDemand = allDemand.filter((item) => relevantKeys.has(item.equipmentTypeId)).slice(0, 5);
     const duration = estimateWorkoutDuration(normalDuration, equipmentDemand);
@@ -80,7 +82,7 @@ export const recommendFacilities = (
           ? 'Missing required operational equipment.'
           : mainIssue && ['high', 'very_high'].includes(mainIssue.demandLevel)
             ? `${facility.shortName} is available, but ${mainIssue.displayName.toLowerCase()} demand may add ${duration.additionalWaitRange[0]}–${duration.additionalWaitRange[1]} minutes.`
-            : `${facility.shortName} has a workable ${forecast.crowdLevel.replace('_', ' ')} forecast with lower ${focus ? 'workout' : 'activity'}-specific delays.`;
+            : `${facility.shortName} has a workable ${forecast.crowdLevel.replace('_', ' ')} forecast with lower ${selectedFocuses.length ? 'workout' : 'activity'}-specific delays.`;
     return { facility, score, forecast, equipmentDemand, duration, eligible, explanation };
   }).sort((a, b) => b.score - a.score);
 };
@@ -88,7 +90,7 @@ export const recommendFacilities = (
 export const findBetterRecommendationWindow = (
   state: DemoState,
   from: string,
-  focus: string | undefined,
+  focus: WorkoutFocusInput,
   activity: string | undefined,
   normalDuration: number,
   requiredEquipment: string[],

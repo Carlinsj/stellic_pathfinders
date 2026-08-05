@@ -16,6 +16,9 @@ test('visual smoke capture has meaningful rendered content', async ({ page }, te
   await expect(page.locator('.vite-error-overlay, #webpack-dev-server-client-overlay, [data-nextjs-dialog]')).toHaveCount(0);
   await page.screenshot({ path: 'test-results/campusfit-home.png', fullPage: true });
   expect(await page.locator('body').innerText()).toContain('CampusFit');
+  await page.getByRole('link', { name: 'Plan' }).first().click();
+  await expect(page.getByRole('group', { name: 'Muscle groups' })).toBeVisible();
+  await page.screenshot({ path: 'test-results/campusfit-multi-focus-plan.png', fullPage: true });
   await page.goto('/nyu/facilities/nyu_paulson');
   await page.getByRole('button', { name: 'Later', exact: true }).click();
   await expect(page.getByText(/Your best bet is around/i)).toBeVisible();
@@ -69,6 +72,11 @@ test('student home is overflow-free at required product widths', async ({ page }
   }
 
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/nyu/plan');
+  await expect(page.getByRole('group', { name: 'Muscle groups' })).toBeVisible();
+  const planOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(planOverflow).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: 'test-results/campusfit-multi-focus-plan-390.png', fullPage: true });
   await page.goto('/nyu/facilities/nyu_paulson');
   await page.getByRole('button', { name: 'Later', exact: true }).click();
   const facilityOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -82,4 +90,7 @@ test('student home is overflow-free at required product widths', async ({ page }
   expect(dialogBounds).not.toBeNull();
   expect(dialogBounds!.width).toBeLessThanOrEqual(390);
   await page.screenshot({ path: 'test-results/campusfit-checkin-sheet-390.png' });
+  await dialog.getByRole('button', { name: /Continue/ }).click();
+  await expect(dialog.getByRole('group', { name: 'Muscle groups' })).toBeVisible();
+  await page.screenshot({ path: 'test-results/campusfit-multi-focus-checkin-390.png' });
 });
