@@ -124,7 +124,7 @@ test('students see workout-specific equipment outages without staff controls', a
   await expect(status).toContainText('Cable stations');
   await expect(status).toContainText('2 of 8 out of service');
   await expect(status).toContainText('Staff reported');
-  await expect(page.getByRole('button', { name: /Mark one unavailable|Restore all units/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Mark 1 out of service|Restore \d+ units?/ })).toHaveCount(0);
 
   await page.getByLabel('Workout focus').selectOption('legs');
   await expect(status.getByRole('heading', { name: 'Equipment status for Legs' })).toBeVisible();
@@ -178,19 +178,61 @@ test('university administrators land in the protected configuration console', as
   await expect(page.locator('.desktop-sidebar nav a[href="/nyu/home"], .bottom-nav a[href="/nyu/home"]')).toHaveCount(0);
 });
 
-test('staff can restore equipment and reopen a facility', async ({ page }) => {
+test('staff can restore a bounded number of equipment units and reopen a facility', async ({ page }) => {
   await page.goto('/nyu/staff-login');
   await page.getByRole('button', { name: /Sam Ortiz/ }).click();
-  const inventory = page.locator('.inventory-read');
-  await expect(inventory).toContainText('Outage active');
-  await page.getByRole('button', { name: /Restore all units/ }).click();
+  const inventory = page.locator('.equipment-control-panel');
+  const restoreQuantity = page.getByLabel('Units restored');
+  await expect(inventory).toContainText('2 out of service');
+  await expect(restoreQuantity).toHaveAttribute('max', '2');
+
+  await page.getByRole('button', { name: /Mark 1 out of service/ }).click();
+  await page.getByRole('button', { name: /Mark 1 out of service/ }).click();
+  await expect(inventory).toContainText('4 out of service');
+  await expect(page.getByRole('button', { name: '3', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'All 4', exact: true })).toBeVisible();
+  await restoreQuantity.fill('99');
+  await expect(restoreQuantity).toHaveValue('4');
+
+  await page.getByRole('button', { name: '3', exact: true }).click();
+  await expect(page.locator('.repair-outcome')).toContainText('after repair');
+  await expect(page.locator('.repair-outcome')).toContainText('7 / 8');
+  await page.getByRole('button', { name: /Restore 3 units/ }).click();
+  await expect(inventory).toContainText('7 / 8');
+  await expect(inventory).toContainText('1 out of service');
+  await expect(restoreQuantity).toHaveAttribute('max', '1');
+
+  await page.getByRole('button', { name: /Restore 1 unit/ }).click();
   await expect(inventory).toContainText('8 / 8');
-  await expect(inventory).toContainText('Back up and running');
+  await expect(inventory).toContainText('Fully operational');
+  await expect(page.getByText(/no repairs to record/i)).toBeVisible();
 
   await page.getByRole('button', { name: /Close Palladium for 2 hours/ }).click();
   await expect(page.getByText('Temporarily closed', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: /Reopen Palladium now/ }).click();
   await expect(page.getByText('Open and operating', { exact: true })).toBeVisible();
+});
+
+test('staff equipment workspace fits its viewport with touch-friendly controls', async ({ page }, testInfo) => {
+  await page.goto('/nyu/staff-login');
+  await page.getByRole('button', { name: /Sam Ortiz/ }).click();
+  const workspace = page.locator('.equipment-admin-card');
+  await expect(workspace).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Record completed repair' })).toBeVisible();
+
+  const viewport = page.viewportSize()!;
+  const bounds = await workspace.boundingBox();
+  expect(bounds).not.toBeNull();
+  expect(bounds!.x).toBeGreaterThanOrEqual(0);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width + 1);
+  const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(horizontalOverflow).toBeLessThanOrEqual(1);
+
+  const decreaseButton = page.getByRole('button', { name: 'Decrease restored units' });
+  const controlBounds = await decreaseButton.boundingBox();
+  expect(controlBounds).not.toBeNull();
+  expect(controlBounds!.height).toBeGreaterThanOrEqual(44);
+  await page.screenshot({ path: `test-results/campusfit-staff-equipment-${testInfo.project.name}.png`, fullPage: true });
 });
 
 test('mobile navigation and privacy states are accessible', async ({ page }, testInfo) => {

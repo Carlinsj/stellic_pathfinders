@@ -29,6 +29,7 @@ export function AppShell() {
   const user = sessions[tenant] ?? state.currentUser;
   const staffPortal = isStaffPortalRole(user.role);
   const navigation = staffPortal ? staffNavItems.filter((item) => canAccessArea(user.role, item.area)) : studentNavItems;
+  const showBottomNavigation = !staffPortal || navigation.length > 1;
   const startPath = `/${tenant}/${defaultRouteForRole(user.role)}`;
   const currentSection = navigation.find((item) => location.pathname.endsWith(`/${item.path}`))?.label ?? (staffPortal ? 'Operations console' : 'CampusFit');
 
@@ -56,7 +57,7 @@ export function AppShell() {
     <div className="app-main-wrap">
       {staffPortal ? <header className="admin-console-header"><div className="admin-console-title"><span><Command />{university.shortName} Athletics operations</span><strong>{currentSection}</strong></div><div className="admin-console-session"><span className="admin-system-state"><i />Demo services online</span><span className="admin-role-chip"><LockKeyhole />{roleLabels[user.role]}</span><button type="button" onClick={handleSignOut} aria-label="Sign out of staff portal"><LogOut /></button></div></header> : <header className="mobile-header"><Brand to={startPath} /><div className="mobile-session"><span>{university.shortName}</span><button type="button" onClick={handleSignOut} aria-label="Sign out"><LogOut /></button></div></header>}
       <main id="main-content" className="app-main"><Outlet /></main>
-      <nav className="bottom-nav" aria-label={staffPortal ? 'Staff mobile navigation' : 'Mobile navigation'} style={{ '--nav-count': navigation.length } as React.CSSProperties}>{navigation.map(({ path, label, icon: Icon }) => <NavLink key={path} to={`/${tenant}/${path}`}><Icon size={21} /><span>{label}</span></NavLink>)}</nav>
+      {showBottomNavigation ? <nav className="bottom-nav" aria-label={staffPortal ? 'Staff mobile navigation' : 'Mobile navigation'} style={{ '--nav-count': navigation.length } as React.CSSProperties}>{navigation.map(({ path, label, icon: Icon }) => <NavLink key={path} to={`/${tenant}/${path}`}><Icon size={21} /><span>{label}</span></NavLink>)}</nav> : null}
     </div>
     {toast ? <div className={`toast toast--${toast.tone}`} role="status"><ShieldCheck size={18} />{toast.message}<button onClick={dismissToast} aria-label="Dismiss notification">×</button></div> : null}
   </div>;

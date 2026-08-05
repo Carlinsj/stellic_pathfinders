@@ -26,6 +26,11 @@ test('visual smoke capture has meaningful rendered content', async ({ page }, te
   await page.screenshot({ path: 'test-results/campusfit-activity-plan.png', fullPage: true });
   await page.locator('.sidebar-user button').click();
   await page.goto('/nyu/staff-login');
+  await page.getByRole('button', { name: /Sam Ortiz/ }).click();
+  await expect(page.getByRole('heading', { name: 'Record completed repair' })).toBeVisible();
+  await page.screenshot({ path: 'test-results/campusfit-staff-repair-flow.png', fullPage: true });
+  await page.locator('.sidebar-user button').click();
+  await page.goto('/nyu/staff-login');
   await page.getByRole('button', { name: /Taylor Morgan/ }).click();
   await expect(page.locator('.admin-console-header')).toContainText('University settings');
   await page.screenshot({ path: 'test-results/campusfit-admin-console.png', fullPage: true });

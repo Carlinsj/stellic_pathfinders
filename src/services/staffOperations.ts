@@ -45,14 +45,34 @@ export const markEquipmentUnavailable = (
   };
 };
 
-export const restoreEquipment = (state: DemoState, facilityId: string, equipmentTypeId: string): DemoState => {
+export const restoreEquipment = (
+  state: DemoState,
+  facilityId: string,
+  equipmentTypeId: string,
+  units: number
+): DemoState => {
   requireStaffAccess(state);
   requireOwnedInventory(state, facilityId, equipmentTypeId);
+  if (!Number.isInteger(units) || units < 1) {
+    throw new Error('Restore quantity must be a positive whole number');
+  }
+  const inventory = state.facilityEquipment.find((item) =>
+    item.universityId === state.university.id &&
+    item.facilityId === facilityId &&
+    item.equipmentTypeId === equipmentTypeId)!;
+  const unavailableQuantity = Math.max(0, inventory.totalQuantity - inventory.operationalQuantity);
+  if (units > unavailableQuantity) {
+    throw new Error('Cannot restore more units than are out of service');
+  }
   return {
     ...state,
     facilityEquipment: state.facilityEquipment.map((item) =>
       item.universityId === state.university.id && item.facilityId === facilityId && item.equipmentTypeId === equipmentTypeId
-        ? { ...item, operationalQuantity: item.totalQuantity, outageReason: undefined }
+        ? {
+            ...item,
+            operationalQuantity: item.operationalQuantity + units,
+            outageReason: item.operationalQuantity + units === item.totalQuantity ? undefined : item.outageReason
+          }
         : item)
   };
 };

@@ -11,10 +11,10 @@ const staffState = () => ({
 describe('staff operations', () => {
   it('denies equipment mutations to students', () => {
     const state = createDemoState('nyu');
-    expect(() => restoreEquipment(state, 'nyu_palladium', 'cable')).toThrow('Staff access required');
+    expect(() => restoreEquipment(state, 'nyu_palladium', 'cable', 1)).toThrow('Staff access required');
   });
 
-  it('marks equipment unavailable and restores every unit', () => {
+  it('marks equipment unavailable and restores only the selected number of units', () => {
     const state = staffState();
     const before = state.facilityEquipment.find((item) => item.facilityId === 'nyu_palladium' && item.equipmentTypeId === 'cable')!;
     const reduced = markEquipmentUnavailable(state, 'nyu_palladium', 'cable');
@@ -22,10 +22,24 @@ describe('staff operations', () => {
     expect(unavailable.operationalQuantity).toBe(before.operationalQuantity - 1);
     expect(unavailable.outageReason).toBeTruthy();
 
-    const restored = restoreEquipment(reduced, 'nyu_palladium', 'cable');
-    const available = restored.facilityEquipment.find((item) => item.facilityId === 'nyu_palladium' && item.equipmentTypeId === 'cable')!;
+    const partiallyRestored = restoreEquipment(reduced, 'nyu_palladium', 'cable', 1);
+    const remainingOutage = partiallyRestored.facilityEquipment.find((item) => item.facilityId === 'nyu_palladium' && item.equipmentTypeId === 'cable')!;
+    expect(remainingOutage.operationalQuantity).toBe(before.operationalQuantity);
+    expect(remainingOutage.operationalQuantity).toBeLessThan(remainingOutage.totalQuantity);
+    expect(remainingOutage.outageReason).toBeTruthy();
+
+    const fullyRestored = restoreEquipment(partiallyRestored, 'nyu_palladium', 'cable', 2);
+    const available = fullyRestored.facilityEquipment.find((item) => item.facilityId === 'nyu_palladium' && item.equipmentTypeId === 'cable')!;
     expect(available.operationalQuantity).toBe(available.totalQuantity);
     expect(available.outageReason).toBeUndefined();
+  });
+
+  it('rejects restoring more units than are out of service', () => {
+    const state = staffState();
+    expect(() => restoreEquipment(state, 'nyu_palladium', 'cable', 3))
+      .toThrow('Cannot restore more units than are out of service');
+    expect(() => restoreEquipment(state, 'nyu_palladium', 'cable', 0))
+      .toThrow('Restore quantity must be a positive whole number');
   });
 
   it('closes and explicitly reopens an owned facility', () => {
@@ -38,6 +52,6 @@ describe('staff operations', () => {
   });
 
   it('rejects cross-tenant facility identifiers', () => {
-    expect(() => restoreEquipment(staffState(), 'foreign_facility', 'cable')).toThrow('Facility not found in tenant');
+    expect(() => restoreEquipment(staffState(), 'foreign_facility', 'cable', 1)).toThrow('Facility not found in tenant');
   });
 });
