@@ -100,7 +100,7 @@ export const recommendFacilities = (
           ? 'Missing required operational equipment.'
           : mainIssue && ['high', 'very_high'].includes(mainIssue.demandLevel)
             ? `${facility.shortName} is available, but ${mainIssue.displayName.toLowerCase()} demand may add ${duration.additionalWaitRange[0]}–${duration.additionalWaitRange[1]} minutes.`
-            : `${facility.shortName} has a workable ${forecast.crowdLevel.replace('_', ' ')} forecast with lower ${selectedFocuses.length ? 'workout' : 'activity'}-specific delays.`;
+            : `${facility.shortName} is predicted to be ${forecast.crowdLevel.replace('_', ' ')} overall, with ${duration.additionalWaitRange[0]}–${duration.additionalWaitRange[1]} minutes of estimated waiting for ${selectedFocuses.length ? 'workout equipment' : 'activity resources'}.`;
     return { facility, score, forecast, equipmentDemand, duration, eligible, explanation };
   }).sort((a, b) => b.score - a.score);
 };

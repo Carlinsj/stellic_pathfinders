@@ -129,6 +129,15 @@ describe('deterministic demand engines', () => {
     expect(guidance.label).toContain('still busy');
   });
 
+  it('explains usable recommendations with concrete crowd and wait ranges', () => {
+    const state = createDemoState('nyu');
+    const recommendation = recommendFacilities(state, state.now, 'general_workout', undefined, 50)
+      .find((item) => item.eligible && !item.explanation.includes('demand may add'))!;
+    expect(recommendation.explanation).toContain('predicted to be');
+    expect(recommendation.explanation).toMatch(/\d+–\d+ minutes of estimated waiting/);
+    expect(recommendation.explanation).not.toContain('workable');
+  });
+
   it('finds a meaningfully better later window with an explainable time-saving range', () => {
     const state = createDemoState('nyu');
     const current = recommendFacilities(state, state.now, 'back', undefined, 50).find((item) => item.eligible)!;
