@@ -30,3 +30,4 @@ temp/
 .codex/
 .agents/
 .DS_Store
+/graphify-out

@@ -15,7 +15,7 @@ const baseline = (peak: number, midday = 0.45): Record<number, number> => ({
 export const universities: Record<'nyu', University> = {
   nyu: {
     id: 'uni_nyu', slug: 'nyu', name: 'New York University', shortName: 'NYU', mark: 'NYU',
-    primaryColor: '#38255c', secondaryColor: '#ede7f6', accentColor: '#f0c06a', timezone: 'America/New_York',
+    primaryColor: '#57068c', secondaryColor: '#f0e8f5', accentColor: '#f2c66d', timezone: 'America/New_York',
     emailDomain: 'nyu.edu', recreationOfficeName: 'NYU Athletics', privacyCountThreshold: 3, autoCloseGraceMinutes: 25
   }
 };

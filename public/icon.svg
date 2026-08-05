@@ -1,4 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="CampusFit">
-  <rect width="64" height="64" rx="18" fill="#17261e"/>
+  <rect width="64" height="64" rx="18" fill="#57068c"/>
   <path d="M17 34h30M21 27v14M15 29v10M43 27v14M49 29v10" stroke="#f0c06a" stroke-width="5" stroke-linecap="round"/>
 </svg>

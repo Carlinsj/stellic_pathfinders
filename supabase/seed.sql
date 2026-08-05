@@ -1,6 +1,6 @@
 -- Deterministic competition seed. All rows are synthetic.
 insert into public.universities (id,name,short_name,slug,primary_colour,secondary_colour,timezone,email_domain,recreation_office_name,privacy_count_threshold,auto_close_grace_minutes) values
-('10000000-0000-0000-0000-000000000001','New York University','NYU','nyu','#38255c','#ede7f6','America/New_York','nyu.edu','NYU Athletics',3,25);
+('10000000-0000-0000-0000-000000000001','New York University','NYU','nyu','#57068c','#f0e8f5','America/New_York','nyu.edu','NYU Athletics',3,25);
 
 insert into public.facilities (id,university_id,name,short_name,address,capacity,description) values
 ('11000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','Palladium Athletic Facility','Palladium','140 E 14th St',620,'Strength, pool, courts, and studios.'),

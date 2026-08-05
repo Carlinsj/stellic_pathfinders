@@ -9,10 +9,10 @@ import { Brand } from './Brand';
 
 const studentNavItems = [
   { path: 'home', label: 'Home', icon: Home },
-  { path: 'facilities', label: 'Facilities', icon: MapPin },
+  { path: 'facilities', label: 'Gyms', icon: MapPin },
   { path: 'plan', label: 'Plan', icon: CalendarDays },
-  { path: 'activity', label: 'Equipment', icon: Activity },
-  { path: 'history', label: 'History', icon: UserRound }
+  { path: 'activity', label: 'Demand', icon: Activity },
+  { path: 'history', label: 'Activity', icon: UserRound }
 ];
 
 const staffNavItems: Array<{ path: string; label: string; icon: typeof ShieldCheck; area: AccessArea }> = [
@@ -47,15 +47,15 @@ export function AppShell() {
 
   const university = state.university;
   return <div className={`app-shell ${staffPortal ? 'app-shell--staff' : 'app-shell--student'}`} style={{ '--tenant-primary': university.primaryColor, '--tenant-secondary': university.secondaryColor, '--tenant-accent': university.accentColor } as React.CSSProperties}>
-    <aside className="desktop-sidebar">
+    {staffPortal ? <aside className="desktop-sidebar">
       <Brand to={startPath} inverted />
       <div className="tenant-lockup"><span className="tenant-mark">{university.mark}</span><div><small>{staffPortal ? `${university.shortName} Athletics` : 'Campus recreation'}</small><strong>{staffPortal ? 'Operations console' : university.shortName}</strong></div></div>
       <nav aria-label={staffPortal ? 'Staff navigation' : 'Primary navigation'}>{navigation.map(({ path, label, icon: Icon }) => <NavLink key={path} to={`/${tenant}/${path}`}><Icon size={19} /><span>{label}</span></NavLink>)}</nav>
       {staffPortal ? <div className="staff-access-note"><ShieldCheck /><span><strong>Protected operations</strong><small>Role-based access · Demo</small></span></div> : null}
       <div className="sidebar-user"><span>{initials(user.fullName)}</span><div><strong>{user.fullName}</strong><small>{roleLabels[user.role]}</small></div><button type="button" onClick={handleSignOut} aria-label="Sign out"><LogOut /></button></div>
-    </aside>
+    </aside> : null}
     <div className="app-main-wrap">
-      {staffPortal ? <header className="admin-console-header"><div className="admin-console-title"><span><Command />{university.shortName} Athletics operations</span><strong>{currentSection}</strong></div><div className="admin-console-session"><span className="admin-system-state"><i />Demo services online</span><span className="admin-role-chip"><LockKeyhole />{roleLabels[user.role]}</span><button type="button" onClick={handleSignOut} aria-label="Sign out of staff portal"><LogOut /></button></div></header> : <header className="mobile-header"><Brand to={startPath} /><div className="mobile-session"><span>{university.shortName}</span><button type="button" onClick={handleSignOut} aria-label="Sign out"><LogOut /></button></div></header>}
+      {staffPortal ? <header className="admin-console-header"><div className="admin-console-title"><span><Command />{university.shortName} Athletics operations</span><strong>{currentSection}</strong></div><div className="admin-console-session"><span className="admin-system-state"><i />Demo services online</span><span className="admin-role-chip"><LockKeyhole />{roleLabels[user.role]}</span><button type="button" onClick={handleSignOut} aria-label="Sign out of staff portal"><LogOut /></button></div></header> : <header className="student-app-header"><div className="student-header-inner"><Brand to={startPath} /><span className="nyu-identity">NYU</span><nav className="student-desktop-nav" aria-label="Primary navigation">{navigation.map(({ path, label, icon: Icon }) => <NavLink key={path} to={`/${tenant}/${path}`}><Icon size={17} /><span>{label}</span></NavLink>)}</nav><div className="student-header-actions"><button type="button" className="student-profile-action" onClick={handleSignOut} aria-label={`Sign out ${user.fullName}`}><span>{initials(user.fullName)}</span><div><strong>{user.fullName.split(' ')[0]}</strong><small>NYU student</small></div><LogOut /></button></div></div></header>}
       <main id="main-content" className="app-main"><Outlet /></main>
       {showBottomNavigation ? <nav className="bottom-nav" aria-label={staffPortal ? 'Staff mobile navigation' : 'Mobile navigation'} style={{ '--nav-count': navigation.length } as React.CSSProperties}>{navigation.map(({ path, label, icon: Icon }) => <NavLink key={path} to={`/${tenant}/${path}`}><Icon size={21} /><span>{label}</span></NavLink>)}</nav> : null}
     </div>

@@ -11,7 +11,7 @@ export default defineConfig({
         name: 'CampusFit',
         short_name: 'CampusFit',
         description: 'Know where and when to work out on campus.',
-        theme_color: '#17261e',
+        theme_color: '#57068c',
         background_color: '#f3f0e8',
         display: 'standalone',
         start_url: '/',
