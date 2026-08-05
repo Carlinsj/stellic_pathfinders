@@ -17,7 +17,7 @@ const studentProfiles: Record<TenantSlug, UserProfile[]> = {
   nyu: [
     { id: 'nyu_maya', universityId: 'uni_nyu', fullName: 'Maya Chen', email: 'maya.chen@nyu.edu', role: 'student', preferredFacilityId: 'nyu_palladium', defaultPrivacyLevel: 'anonymous_aggregate' },
     { id: 'nyu_theo', universityId: 'uni_nyu', fullName: 'Theo Rivera', email: 'theo.rivera@nyu.edu', role: 'student', preferredFacilityId: 'nyu_paulson', defaultPrivacyLevel: 'anonymous_aggregate' },
-    { id: 'nyu_aisha', universityId: 'uni_nyu', fullName: 'Aisha Brooks', email: 'aisha.brooks@nyu.edu', role: 'student', preferredFacilityId: 'nyu_404', defaultPrivacyLevel: 'private' }
+    { id: 'nyu_aisha', universityId: 'uni_nyu', fullName: 'Aisha Brooks', email: 'aisha.brooks@nyu.edu', role: 'student', preferredFacilityId: 'nyu_404', defaultPrivacyLevel: 'anonymous_aggregate' }
   ]
 };
 

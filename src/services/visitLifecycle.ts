@@ -114,7 +114,7 @@ export const createPlan = (state: DemoState, draft: VisitDraft): DemoState => {
     secondaryFocuses: visitFocuses.secondaryFocuses,
     activity: draft.activity,
     equipmentNeeds: [...new Set(equipmentNeedsForDraft(draft))],
-    privacyLevel: draft.privacyLevel,
+    privacyLevel: 'anonymous_aggregate',
     reliabilityWeight: 1,
     createdAt: now,
     updatedAt: now
@@ -149,7 +149,7 @@ export const spontaneousCheckIn = (state: DemoState, draft: VisitDraft): DemoSta
     secondaryFocuses: visitFocuses.secondaryFocuses,
     activity: draft.activity,
     equipmentNeeds: [...new Set(equipmentNeedsForDraft(draft))],
-    privacyLevel: draft.privacyLevel,
+    privacyLevel: 'anonymous_aggregate',
     reliabilityWeight: 1,
     createdAt: now,
     updatedAt: now

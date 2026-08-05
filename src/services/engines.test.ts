@@ -149,11 +149,12 @@ describe('deterministic demand engines', () => {
     expect(comparison.factors.join(' ')).toContain('Travel');
   });
 
-  it('excludes private visits from live CampusFit aggregates', () => {
+  it('includes every active visit in anonymous CampusFit aggregates', () => {
     const state = createDemoState('nyu');
     const before = getLiveAggregate(state, 'nyu_palladium');
     const checkedIn = spontaneousCheckIn(state, { facilityId: 'nyu_palladium', intent: 'workout', primaryWorkoutFocus: 'back', expectedDurationMinutes: 60, privacyLevel: 'private' });
-    expect(getLiveAggregate(checkedIn, 'nyu_palladium').campusFitCheckIns).toBe(before.campusFitCheckIns);
+    expect(getLiveAggregate(checkedIn, 'nyu_palladium').campusFitCheckIns).toBe(before.campusFitCheckIns + 1);
+    expect(checkedIn.visits.at(-1)?.privacyLevel).toBe('anonymous_aggregate');
   });
 
   it('keeps an overdue visit active for a 30-minute reminder grace period', () => {

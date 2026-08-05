@@ -113,7 +113,7 @@ test('students can plan a workout with multiple muscle groups', async ({ page })
   await expect(page.locator('.upcoming-strip')).toContainText('Chest + Legs');
 });
 
-test('planning shows gym demand, ranking reasons, and defined privacy choices', async ({ page }) => {
+test('planning shows gym demand, ranking reasons, and mandatory anonymous contribution', async ({ page }) => {
   await page.goto('/nyu/login');
   await page.getByRole('button', { name: /Maya Chen/ }).click();
   await page.getByRole('link', { name: 'Plan' }).first().click();
@@ -126,8 +126,8 @@ test('planning shows gym demand, ranking reasons, and defined privacy choices', 
   await expect(page.locator('.ranking-explanation')).toContainText('less busy overall');
   await expect(page.locator('.ranking-explanation')).toContainText('Workout-specific wait');
   await page.getByRole('button', { name: /Continue/ }).click();
-  await expect(page.getByRole('group', { name: 'Privacy for this visit' })).toContainText('never shown to other students');
-  await expect(page.getByRole('radio', { name: /Private Keeps the visit/i })).toBeVisible();
+  await expect(page.getByLabel('Anonymous demand contribution')).toContainText('never shown to other students');
+  await expect(page.getByRole('radio')).toHaveCount(0);
   await expect(page.getByText('Friends only')).not.toBeVisible();
 });
 
@@ -143,6 +143,8 @@ test('quick check-in accepts multiple muscle groups', async ({ page }) => {
   await focusPicker.getByRole('button', { name: 'General workout', exact: true }).click();
   await dialog.getByRole('button', { name: /Continue/ }).click();
   await dialog.getByRole('button', { name: /Review/ }).click();
+  await expect(dialog.getByLabel('Anonymous demand contribution')).toContainText('workout areas may be in demand');
+  await expect(dialog.getByText('Private', { exact: true })).not.toBeVisible();
   await expect(dialog).toContainText('Chest + Legs');
 });
 
