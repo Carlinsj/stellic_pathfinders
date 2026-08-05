@@ -23,6 +23,24 @@ export interface BetterRecommendationWindow {
   explanation: string;
 }
 
+export interface RecommendationComparison { headline: string; summary: string; factors: string[]; }
+
+export const compareRecommendations = (recommended: FacilityRecommendation, alternative: FacilityRecommendation): RecommendationComparison => {
+  const travelDifference = alternative.facility.travelMinutes - recommended.facility.travelMinutes;
+  const recommendedWait = recommended.duration.additionalWaitRange;
+  const alternativeWait = alternative.duration.additionalWaitRange;
+  const alternativeIsCalmer = crowdPenalty[alternative.forecast.crowdLevel] < crowdPenalty[recommended.forecast.crowdLevel];
+  return {
+    headline: `Why ${recommended.facility.shortName} ranks higher`,
+    summary: `${alternativeIsCalmer ? `${alternative.facility.shortName} is less busy overall, but ${recommended.facility.shortName} is expected to be faster for this workout` : `${recommended.facility.shortName} is expected to be the better overall fit for this workout`}${travelDifference > 0 ? ` and is ${travelDifference} minutes closer` : ''}. Equipment waits, travel, overall crowd, and your preferred gym all affect the ranking.`,
+    factors: [
+      `Overall crowd: ${alternative.facility.shortName} is ${alternative.forecast.crowdLevel.replace('_', ' ')}; ${recommended.facility.shortName} is ${recommended.forecast.crowdLevel.replace('_', ' ')}.`,
+      `Workout-specific wait: ${recommended.facility.shortName} ${recommendedWait[0]}–${recommendedWait[1]} min; ${alternative.facility.shortName} ${alternativeWait[0]}–${alternativeWait[1]} min.`,
+      `Travel: ${recommended.facility.shortName} ${recommended.facility.travelMinutes} min; ${alternative.facility.shortName} ${alternative.facility.travelMinutes} min.`
+    ]
+  };
+};
+
 export const getRecommendationGuidance = (recommendation: FacilityRecommendation): RecommendationGuidance => {
   const crowd = recommendation.forecast.crowdLevel.replace('_', ' ');
   const strongCrowdLevel = recommendation.forecast.crowdLevel === 'low' || recommendation.forecast.crowdLevel === 'moderate';

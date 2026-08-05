@@ -28,8 +28,7 @@ test('complete NYU planned visit with delay, check-in, and check-out', async ({ 
   await expect(page.getByRole('heading', { name: /What are you doing/i })).toBeVisible();
   await page.getByRole('button', { name: /Continue/ }).click();
   await expect(page.getByLabel('Arrival time')).toHaveValue('20:15');
-  await expect(page.getByRole('button', { name: /8:15 PM CampusFit pick/i })).toHaveClass(/is-selected/);
-  await page.getByRole('button', { name: /6:00 PM/ }).click();
+  await page.getByLabel('Arrival time').fill('18:00');
   await page.getByRole('button', { name: /Continue/ }).click();
   await page.getByRole('button', { name: /Palladium/ }).click();
   await page.getByRole('button', { name: /Continue/ }).click();
@@ -102,6 +101,24 @@ test('students can plan a workout with multiple muscle groups', async ({ page })
   await expect(page.locator('.plan-review-hero')).toContainText('Chest + Legs');
   await page.getByRole('button', { name: /Save visit plan/ }).click();
   await expect(page.locator('.upcoming-strip')).toContainText('Chest + Legs');
+});
+
+test('planning shows gym demand, ranking reasons, and defined privacy choices', async ({ page }) => {
+  await page.goto('/nyu/login');
+  await page.getByRole('button', { name: /Maya Chen/ }).click();
+  await page.getByRole('link', { name: 'Plan' }).first().click();
+  await page.getByRole('button', { name: /Continue/ }).click();
+  await expect(page.getByText('Better after 7:30')).toHaveCount(0);
+  await page.getByLabel('Arrival time').fill('18:00');
+  await page.getByRole('button', { name: /Continue/ }).click();
+  await page.getByRole('button', { name: /Brooklyn/ }).click();
+  await expect(page.getByRole('heading', { name: /Demand for Back at Brooklyn/ })).toBeVisible();
+  await expect(page.locator('.ranking-explanation')).toContainText('less busy overall');
+  await expect(page.locator('.ranking-explanation')).toContainText('Workout-specific wait');
+  await page.getByRole('button', { name: /Continue/ }).click();
+  await expect(page.getByRole('group', { name: 'Privacy for this visit' })).toContainText('never shown to other students');
+  await expect(page.getByRole('radio', { name: /Private Keeps the visit/i })).toBeVisible();
+  await expect(page.getByText('Friends only')).not.toBeVisible();
 });
 
 test('quick check-in accepts multiple muscle groups', async ({ page }) => {

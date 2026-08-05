@@ -6,7 +6,7 @@ import { estimateWorkoutDuration } from './durationEstimator';
 import { calculateEquipmentDemand } from './equipmentDemand';
 import { forecastDemand, isFacilityOpen } from './forecasting';
 import { getLiveAggregate } from './liveAggregation';
-import { findBetterRecommendationWindow, getRecommendationGuidance, recommendFacilities } from './recommendation';
+import { compareRecommendations, findBetterRecommendationWindow, getRecommendationGuidance, recommendFacilities } from './recommendation';
 import { spontaneousCheckIn } from './visitLifecycle';
 
 describe('deterministic demand engines', () => {
@@ -135,6 +135,24 @@ describe('deterministic demand engines', () => {
     expect(later).toBeDefined();
     expect(later!.recommendation.score).toBeGreaterThanOrEqual(current.score + 8);
     expect(later!.minutesSavedRange[1]).toBeGreaterThanOrEqual(later!.minutesSavedRange[0]);
+  });
+
+  it('explains why a busier gym can rank above a calmer alternative', () => {
+    const state = createDemoState('nyu');
+    const recommendations = recommendFacilities(state, state.now, 'back', undefined, 50);
+    const recommended = recommendations.find((item) => item.eligible)!;
+    const calmer = recommendations.find((item) => item.eligible && item.forecast.crowdLevel === 'moderate')!;
+    const comparison = compareRecommendations(recommended, calmer);
+    expect(comparison.summary).toContain('less busy overall');
+    expect(comparison.factors.join(' ')).toContain('Workout-specific wait');
+    expect(comparison.factors.join(' ')).toContain('Travel');
+  });
+
+  it('excludes private visits from live CampusFit aggregates', () => {
+    const state = createDemoState('nyu');
+    const before = getLiveAggregate(state, 'nyu_palladium');
+    const checkedIn = spontaneousCheckIn(state, { facilityId: 'nyu_palladium', intent: 'workout', primaryWorkoutFocus: 'back', expectedDurationMinutes: 60, privacyLevel: 'private' });
+    expect(getLiveAggregate(checkedIn, 'nyu_palladium').campusFitCheckIns).toBe(before.campusFitCheckIns);
   });
 
   it('excludes temporary facility closures from recommendations', () => {

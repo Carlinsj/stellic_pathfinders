@@ -1,6 +1,7 @@
 import type { DemoState, LiveAggregate } from '../domain/types';
 import { titleCase } from '../data/catalog';
 import { getVisitWorkoutFocuses } from './workoutFocus';
+import { contributesToLiveAggregate } from './visitPrivacy';
 
 const crowdFromParticipation = (count: number, capacity: number): LiveAggregate['crowdLevel'] => {
   const share = count / Math.max(capacity * 0.08, 1);
@@ -25,7 +26,7 @@ const aggregateCategory = (
 export const getLiveAggregate = (state: DemoState, facilityId: string): LiveAggregate => {
   const facility = state.facilities.find((item) => item.id === facilityId);
   if (!facility) throw new Error('Facility not found in tenant');
-  const active = state.visits.filter((visit) => visit.facilityId === facilityId && visit.status === 'checked_in');
+  const active = state.visits.filter((visit) => visit.facilityId === facilityId && visit.status === 'checked_in' && contributesToLiveAggregate(visit.privacyLevel));
   return {
     facilityId,
     campusFitCheckIns: active.length,
