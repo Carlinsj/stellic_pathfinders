@@ -12,11 +12,18 @@ import { crowdLabel, formatTime, formatTimeInput, replaceTime } from '../lib/for
 import { getLiveAggregate } from '../services/liveAggregation';
 import { findBetterRecommendationWindow, getRecommendationGuidance, recommendFacilities } from '../services/recommendation';
 import { forecastDemand } from '../services/forecasting';
-import { changeActivity, changeWorkoutFocuses, checkInPlannedVisit, checkOutVisit, delayVisit, extendVisit, spontaneousCheckIn } from '../services/visitLifecycle';
+import { changeActivity, changeWorkoutFocuses, checkInPlannedVisit, checkOutVisit, delayVisit, extendVisit, extendVisitUntil, spontaneousCheckIn } from '../services/visitLifecycle';
+import { getActiveVisitTiming, graceMinutesRemaining } from '../services/visitReminders';
 import { getVisitWorkoutFocuses } from '../services/workoutFocus';
 
 const workoutFocusLabel = (focuses: string[]): string =>
   focuses.map((key) => workoutFocuses.find((item) => item.key === key)?.label).filter(Boolean).join(' + ') || 'Workout';
+
+const toLocalDateTimeInput = (iso: string): string => {
+  const date = new Date(iso);
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+};
 
 export function HomePage() {
   const { tenant, state } = useTenant();
@@ -31,6 +38,7 @@ export function HomePage() {
   const [duration, setDuration] = useState('60');
   const [privacy, setPrivacy] = useState<PrivacyLevel>(state.currentUser.defaultPrivacyLevel);
   const [customLateTime, setCustomLateTime] = useState('18:30');
+  const [extensionEnd, setExtensionEnd] = useState('');
   const recommendations = useMemo(() => recommendFacilities(state, state.now, 'back', undefined, 50), [state]);
   const best = recommendations.find((item) => item.eligible) ?? recommendations[0]!;
   const guidance = useMemo(() => getRecommendationGuidance(best), [best]);
@@ -56,6 +64,8 @@ export function HomePage() {
   const localHour = new Date(state.now).getHours();
   const greeting = localHour < 12 ? 'Good morning' : localHour < 17 ? 'Good afternoon' : 'Good evening';
   const activeElapsed = activeVisit?.checkedInAt ? Math.max(0, Math.round((Date.parse(state.now) - Date.parse(activeVisit.checkedInAt)) / 60_000)) : 0;
+  const activeTiming = activeVisit ? getActiveVisitTiming(activeVisit, state.now) : 'on_time';
+  const extensionValue = extensionEnd || (activeVisit?.expectedEndAt ? toLocalDateTimeInput(activeVisit.expectedEndAt) : '');
 
   const openCheckIn = () => {
     setCheckInStep(0);
@@ -97,6 +107,12 @@ export function HomePage() {
     const next = replaceTime(upcomingVisit.plannedArrivalAt, customLateTime);
     const minutes = Math.max(1, Math.round((Date.parse(next) - Date.parse(upcomingVisit.plannedArrivalAt)) / 60_000));
     handleDelay(minutes);
+  };
+  const handleExtension = () => {
+    if (!activeVisit || !extensionValue) return;
+    const expectedEndAt = new Date(extensionValue).toISOString();
+    updateTenant(tenant, (current) => extendVisitUntil(current, activeVisit.id, expectedEndAt), `Visit extended until ${formatTime(expectedEndAt, state.university.timezone)}`);
+    setExtensionEnd('');
   };
 
   return <div className="page-stack home-page">
@@ -150,6 +166,8 @@ export function HomePage() {
     <section className="quick-actions-section" aria-labelledby="quick-actions-title"><SectionHeader eyebrow="Your next step" title="What do you want to do?" /><h2 id="quick-actions-title" className="sr-only">Quick actions</h2><div className="quick-action-grid"><QuickAction icon={<Navigation />} label={activeVisit ? 'View active visit' : 'I’m here'} note={activeVisit ? `${activeElapsed} min in progress` : 'Check in anonymously'} onClick={activeVisit ? () => document.querySelector('.active-visit-card')?.scrollIntoView({ behavior: 'smooth' }) : openCheckIn} /><QuickAction icon={<CalendarPlus />} label="Plan workout" note="Choose time and focus" to={`/${tenant}/plan`} /><QuickAction icon={<GitCompareArrows />} label="Compare gyms" note="Ranked for your workout" to={`/${tenant}/facilities`} /></div></section>
 
     {activeVisit && activeFacility ? <section className="active-visit-card" aria-labelledby="active-visit-title"><div className="active-visit-pulse"><span /><Dumbbell /></div><div className="active-visit-main"><DataLabel>{activeVisit.intent === 'activity' ? 'Active activity visit' : 'Active workout'}</DataLabel><h2 id="active-visit-title">You’re at {activeFacility.shortName}</h2><div className="active-timer"><strong>{activeElapsed}<small>min</small></strong><span>Expected finish<br /><b>{formatTime(activeVisit.expectedEndAt!, state.university.timezone)}</b></span></div><p>{activeVisitPurpose} · Started {formatTime(activeVisit.checkedInAt!, state.university.timezone)}</p><div className="active-meta"><span><ShieldCheck size={16} /> Contributing anonymously</span></div><div className="active-editors">{activeVisit.intent === 'workout' ? <WorkoutFocusPicker compact legend="Update muscle groups" description="Your live demand contribution updates when these change." selected={getVisitWorkoutFocuses(activeVisit)} onChange={(focuses) => updateTenant(tenant, (current) => changeWorkoutFocuses(current, activeVisit.id, focuses), 'Live workout demand updated')} /> : null}<label>Change activity<select aria-label="Active activity" value={activeVisit.activity ?? ''} onChange={(event) => updateTenant(tenant, (current) => changeActivity(current, activeVisit.id, event.target.value || undefined), 'Live activity demand updated')}>{activeVisit.intent === 'workout' ? <option value="">No activity</option> : null}{activities.filter((item) => activeFacility.activities.includes(item.key)).map((item) => <option value={item.key} key={item.key}>{item.label}</option>)}</select></label></div></div><div className="active-actions"><Button variant="secondary" onClick={() => updateTenant(tenant, (current) => extendVisit(current, activeVisit.id, 20), 'Visit extended by 20 minutes')}>Extend 20 min</Button><Button onClick={() => updateTenant(tenant, (current) => checkOutVisit(current, activeVisit.id, 'about_as_expected'), 'Checked out — thanks for helping CampusFit')}>Wrap up workout <Check size={17} /></Button></div></section> : null}
+
+    {activeVisit ? <section className={`visit-extension-panel${activeTiming === 'grace_period' ? ' is-overdue' : ''}`} aria-labelledby="visit-extension-title"><div><Clock3 /><div><h2 id="visit-extension-title">{activeTiming === 'grace_period' ? 'Are you finished?' : 'Need more time?'}</h2><p>{activeTiming === 'grace_period' ? `Your clock is still running. Extend it or check out within ${graceMinutesRemaining(activeVisit, state.now)} minutes to avoid automatic checkout.` : 'Set the exact time you expect to finish. There is no fixed 20-minute limit.'}</p></div></div><label>New finish time<input type="datetime-local" min={toLocalDateTimeInput(state.now)} value={extensionValue} onChange={(event) => setExtensionEnd(event.target.value)} /></label><div><Button variant="secondary" onClick={handleExtension}>Extend until this time</Button>{activeTiming === 'grace_period' ? <Button onClick={() => updateTenant(tenant, (current) => checkOutVisit(current, activeVisit.id, 'about_as_expected'), 'Checked out — thanks for helping CampusFit')}>I’m done <Check size={17} /></Button> : null}</div></section> : null}
 
     {upcomingVisit && upcomingFacility ? <section className="upcoming-strip"><div className="upcoming-icon"><CalendarClock /></div><div><DataLabel>{upcomingVisit.status === 'delayed' ? 'Updated arrival' : `Upcoming ${upcomingVisit.intent === 'activity' ? 'activity' : 'workout'}`}</DataLabel><h3>{upcomingFacility.shortName} at {formatTime(upcomingVisit.plannedArrivalAt!, state.university.timezone)}</h3><p>{upcomingVisitPurpose} · {upcomingVisit.expectedDurationMinutes} min · {crowdLabel(forecastDemand(state, upcomingFacility.id, upcomingVisit.plannedArrivalAt!).crowdLevel)} expected</p></div><div className="upcoming-actions"><button onClick={() => setLateOpen(true)}>Running late?</button><button onClick={() => updateTenant(tenant, (current) => checkInPlannedVisit(current, upcomingVisit.id), 'Plan converted to a live check-in — no double counting')}>I’m here <ArrowRight size={16} /></button></div></section> : null}
 

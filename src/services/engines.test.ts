@@ -8,6 +8,7 @@ import { forecastDemand, isFacilityOpen } from './forecasting';
 import { getLiveAggregate } from './liveAggregation';
 import { compareRecommendations, findBetterRecommendationWindow, getRecommendationGuidance, recommendFacilities } from './recommendation';
 import { spontaneousCheckIn } from './visitLifecycle';
+import { getActiveVisitTiming, graceMinutesRemaining } from './visitReminders';
 
 describe('deterministic demand engines', () => {
   it('matches the official NYU recreation activity catalog by facility', () => {
@@ -153,6 +154,15 @@ describe('deterministic demand engines', () => {
     const before = getLiveAggregate(state, 'nyu_palladium');
     const checkedIn = spontaneousCheckIn(state, { facilityId: 'nyu_palladium', intent: 'workout', primaryWorkoutFocus: 'back', expectedDurationMinutes: 60, privacyLevel: 'private' });
     expect(getLiveAggregate(checkedIn, 'nyu_palladium').campusFitCheckIns).toBe(before.campusFitCheckIns);
+  });
+
+  it('keeps an overdue visit active for a 30-minute reminder grace period', () => {
+    const checkedIn = spontaneousCheckIn(createDemoState('nyu'), { facilityId: 'nyu_palladium', intent: 'workout', primaryWorkoutFocus: 'back', expectedDurationMinutes: 60, privacyLevel: 'anonymous_aggregate' });
+    const visit = checkedIn.visits.at(-1)!;
+    const fiveMinutesLate = addMinutes(visit.expectedEndAt!, 5);
+    expect(getActiveVisitTiming(visit, fiveMinutesLate)).toBe('grace_period');
+    expect(graceMinutesRemaining(visit, fiveMinutesLate)).toBe(25);
+    expect(getActiveVisitTiming(visit, visit.autoCloseAt!)).toBe('auto_close_due');
   });
 
   it('excludes temporary facility closures from recommendations', () => {

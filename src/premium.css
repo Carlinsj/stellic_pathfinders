@@ -159,6 +159,16 @@ p { color: var(--muted); line-height: 1.55; }
 .active-visit-card .workout-focus-options button.is-selected > span { color: #2f2934; background: #d8b8e8; }
 .active-actions .button--primary { color: white; background: var(--violet); }
 .active-actions .button--secondary { background: rgba(255,255,255,.09); }
+.active-actions .button--secondary { display: none; }
+.visit-extension-panel { padding: 18px 20px; border: 1px solid var(--line); border-radius: 18px; display: grid; grid-template-columns: 1fr minmax(220px, 300px) auto; align-items: end; gap: 16px; background: var(--card); box-shadow: var(--shadow-soft); }
+.visit-extension-panel.is-overdue { border-color: #d6a348; background: #fff8e8; }
+.visit-extension-panel > div:first-child { display: flex; align-items: flex-start; gap: 11px; }
+.visit-extension-panel > div:first-child > svg { color: var(--violet); }
+.visit-extension-panel h2 { margin: 0; font-size: .92rem; }
+.visit-extension-panel p { margin: 4px 0 0; color: var(--muted); font-size: .62rem; line-height: 1.45; }
+.visit-extension-panel label { display: grid; gap: 6px; color: var(--ink-soft); font-size: .62rem; font-weight: 800; }
+.visit-extension-panel input { min-height: 44px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 11px; background: white; }
+.visit-extension-panel > div:last-child { display: flex; gap: 8px; }
 .upcoming-strip { padding: 19px 20px; border-color: var(--line); border-radius: 20px; background: var(--card); box-shadow: var(--shadow-sm); }
 .upcoming-icon { color: var(--violet); background: var(--violet-soft); }
 .upcoming-actions button { min-height: 44px; border-radius: 12px; color: var(--violet); background: var(--violet-soft); }
@@ -339,6 +349,8 @@ p { color: var(--muted); line-height: 1.55; }
   .privacy-picker { margin: 0 18px 20px; }
   .privacy-picker > div { grid-template-columns: 1fr; }
   .ranking-explanation > div, .plan-demand-preview > div:first-child { flex-wrap: wrap; }
+  .visit-extension-panel { grid-template-columns: 1fr; align-items: stretch; }
+  .visit-extension-panel > div:last-child { display: grid; }
 }
 .plan-review-hero { border-radius: 20px; background: #2f2934; }
 .plan-review-hero h3 { color: white; }

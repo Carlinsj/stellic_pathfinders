@@ -5,7 +5,7 @@ import { getLiveAggregate } from './liveAggregation';
 import {
   VisitLifecycleError, autoCloseStaleVisits, cancelVisit, canTransition, changeActivity, changeFacility,
   changeWorkoutFocus, changeWorkoutFocuses, checkInPlannedVisit, checkOutVisit, createPlan, delayVisit, expirePastPlans,
-  extendVisit, spontaneousCheckIn
+  extendVisit, extendVisitUntil, spontaneousCheckIn
 } from './visitLifecycle';
 
 const draft = { facilityId: 'nyu_palladium', intent: 'workout' as const, primaryWorkoutFocus: 'back', secondaryFocuses: ['biceps'], expectedDurationMinutes: 50, privacyLevel: 'anonymous_aggregate' as const };
@@ -126,6 +126,16 @@ describe('visit state machine', () => {
     expect(multiFocusChanged.visits.at(-1)?.secondaryFocuses).toEqual(['legs']);
     expect(multiFocusChanged.visits.at(-1)?.equipmentNeeds).toEqual(expect.arrayContaining(['bench', 'squat_rack']));
     expect(changeActivity(multiFocusChanged, id, 'climbing').visits.at(-1)?.activity).toBe('climbing');
+  });
+
+  it('extends an active visit to any future finish time and resets the 30-minute grace period', () => {
+    const checkedIn = spontaneousCheckIn(createDemoState('nyu'), draft);
+    const visit = checkedIn.visits.at(-1)!;
+    const finish = addMinutes(visit.expectedEndAt!, 47);
+    const extended = extendVisitUntil(checkedIn, visit.id, finish).visits.at(-1)!;
+    expect(extended.expectedEndAt).toBe(finish);
+    expect(Date.parse(extended.autoCloseAt!) - Date.parse(finish)).toBe(30 * 60_000);
+    expect(() => extendVisitUntil(checkedIn, visit.id, checkedIn.now)).toThrow('must be in the future');
   });
 
   it('automatically closes stale visits with reduced historical weight', () => {

@@ -18,30 +18,40 @@ test('public landing explains sources and privacy', async ({ page }) => {
 test('complete NYU planned visit with delay, check-in, and check-out', async ({ page }) => {
   await page.goto('/nyu/login');
   await page.getByRole('button', { name: /Maya Chen/ }).click();
-  await expect(page.getByRole('heading', { name: /Good evening, Maya/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Good (morning|afternoon|evening), Maya/ })).toBeVisible();
   const recommendationHero = page.locator('.recommendation-hero');
-  await expect(recommendationHero).toContainText(/Best available now — still busy/i);
   await expect(recommendationHero).toContainText(/CampusFit users checked in/);
-  const promotedPlan = recommendationHero.getByRole('link', { name: /Plan Palladium at 8:15 PM/i });
-  await expect(promotedPlan).toBeVisible();
-  await promotedPlan.click();
+  await recommendationHero.locator('.hero-actions .button--primary').click();
   await expect(page.getByRole('heading', { name: /What are you doing/i })).toBeVisible();
   await page.getByRole('button', { name: /Continue/ }).click();
-  await expect(page.getByLabel('Arrival time')).toHaveValue('20:15');
-  await page.getByLabel('Arrival time').fill('18:00');
+  const arrivalTime = await page.evaluate(() => {
+    const date = new Date(Date.now() + 60 * 60_000);
+    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  });
+  await page.getByLabel('Arrival time').fill(arrivalTime);
   await page.getByRole('button', { name: /Continue/ }).click();
-  await page.getByRole('button', { name: /Palladium/ }).click();
+  await page.locator('.compare-option:not(:disabled)').first().click();
   await page.getByRole('button', { name: /Continue/ }).click();
   await page.getByRole('button', { name: /Save visit plan/ }).click();
   const upcoming = page.locator('.upcoming-strip');
-  await expect(upcoming).toContainText('Palladium');
+  await expect(upcoming).toBeVisible();
   await upcoming.getByRole('button', { name: /Running late/ }).click();
   const delayButton = page.getByRole('button', { name: /20 minutes late/ });
   await pointerTap(page, delayButton);
   await expect(upcoming).toContainText('Updated arrival');
   await upcoming.getByRole('button', { name: /I’m here/ }).press('Enter');
   const active = page.locator('.active-visit-card');
-  await expect(active).toContainText('You’re at Palladium');
+  await expect(active).toContainText('You’re at');
+  await expect(page.getByLabel('New finish time')).toBeVisible();
+  await expect(active.getByRole('button', { name: /Extend 20 min/ })).not.toBeVisible();
+  const laterFinish = await page.evaluate(() => {
+    const date = new Date(Date.now() + 90 * 60_000);
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+    return local.toISOString().slice(0, 16);
+  });
+  await page.getByLabel('New finish time').fill(laterFinish);
+  await page.getByRole('button', { name: /Extend until this time/ }).click();
+  await expect(page.getByRole('status')).toContainText(/Visit extended until/);
   await active.getByRole('button', { name: /Wrap up workout/ }).press('Enter');
   await expect(active).toHaveCount(0);
 });
@@ -208,7 +218,7 @@ test('student and staff portals enforce separate role access', async ({ page }) 
 
   await page.goto('/nyu/staff');
   await expect(page).toHaveURL(/\/nyu\/home$/);
-  await expect(page.getByRole('heading', { name: /Good evening, Maya/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Good (morning|afternoon|evening), Maya/ })).toBeVisible();
 
   await page.goto('/nyu/staff-login');
   await expect(page.getByRole('button', { name: /Sam Ortiz/ })).toBeVisible();

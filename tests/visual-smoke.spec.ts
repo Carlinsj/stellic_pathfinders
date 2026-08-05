@@ -12,7 +12,7 @@ test('visual smoke capture has meaningful rendered content', async ({ page }, te
   await page.screenshot({ path: 'test-results/campusfit-landing.png', fullPage: true });
   await page.goto('/nyu/login');
   await page.getByRole('button', { name: /Maya Chen/ }).click();
-  await expect(page.getByRole('heading', { name: /Good evening, Maya/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Good (morning|afternoon|evening), Maya/ })).toBeVisible();
   await expect(page.locator('.vite-error-overlay, #webpack-dev-server-client-overlay, [data-nextjs-dialog]')).toHaveCount(0);
   await page.screenshot({ path: 'test-results/campusfit-home.png', fullPage: true });
   expect(await page.locator('body').innerText()).toContain('CampusFit');
@@ -53,7 +53,7 @@ test('student home is overflow-free at required product widths', async ({ page }
   for (const width of [375, 390, 430, 768, 1280]) {
     await page.setViewportSize({ width, height: width < 600 ? 844 : 900 });
     await page.goto('/nyu/home');
-    await expect(page.getByRole('heading', { name: /Good evening, Maya/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Good (morning|afternoon|evening), Maya/ })).toBeVisible();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(1);
     if (width < 961) {

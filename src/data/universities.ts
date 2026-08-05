@@ -16,7 +16,7 @@ export const universities: Record<'nyu', University> = {
   nyu: {
     id: 'uni_nyu', slug: 'nyu', name: 'New York University', shortName: 'NYU', mark: 'NYU',
     primaryColor: '#57068c', secondaryColor: '#f0e8f5', accentColor: '#f2c66d', timezone: 'America/New_York',
-    emailDomain: 'nyu.edu', recreationOfficeName: 'NYU Athletics', privacyCountThreshold: 3, autoCloseGraceMinutes: 25
+    emailDomain: 'nyu.edu', recreationOfficeName: 'NYU Athletics', privacyCountThreshold: 3, autoCloseGraceMinutes: 30
   }
 };
 

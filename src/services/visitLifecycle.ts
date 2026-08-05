@@ -237,6 +237,23 @@ export const extendVisit = (state: DemoState, visitId: string, minutes = 20): De
   });
 };
 
+export const extendVisitUntil = (state: DemoState, visitId: string, expectedEndAt: string): DemoState => {
+  const visit = state.visits.find((item) => item.id === visitId);
+  if (!visit?.expectedEndAt || visit.status !== 'checked_in') throw new VisitLifecycleError('Only an active visit can be extended');
+  ensureTenant(state, visit);
+  if (!Number.isFinite(Date.parse(expectedEndAt)) || Date.parse(expectedEndAt) <= Date.parse(state.now)) {
+    throw new VisitLifecycleError('The new finish time must be in the future');
+  }
+  return replaceVisit(state, {
+    ...visit,
+    expectedDurationMinutes: Math.max(1, Math.round((Date.parse(expectedEndAt) - Date.parse(visit.checkedInAt!)) / 60_000)),
+    expectedEndAt,
+    autoCloseAt: addMinutes(expectedEndAt, 30),
+    lastActivityAt: state.now,
+    updatedAt: state.now
+  });
+};
+
 export const changeWorkoutFocuses = (state: DemoState, visitId: string, focuses: string[]): DemoState => {
   const visit = state.visits.find((item) => item.id === visitId);
   if (!visit || !['planned', 'delayed', 'checked_in'].includes(visit.status)) throw new VisitLifecycleError('Visit cannot be updated');
