@@ -354,7 +354,6 @@ p { color: var(--muted); line-height: 1.55; }
 .plan-demand-preview > div:not(:first-child) > span:first-child { flex: 1; font-size: .67rem; }
 .plan-demand-preview > div:not(:first-child) b { min-width: 68px; text-align: right; font-size: .65rem; }
 .plan-demand-preview > small { display: block; margin-top: 11px; color: var(--muted); font-size: .55rem; line-height: 1.45; }
-.wizard-panel > label:has(option[value="friends_only"]), .checkin-review { display: none; }
 .privacy-picker { margin: 0 45px 26px; padding: 13px 2px 0; border-top: 1px solid var(--line); display: flex; align-items: flex-start; gap: 8px; background: transparent; }
 .privacy-picker > svg { flex: 0 0 auto; color: var(--violet); }
 .privacy-picker small { color: var(--muted); font-size: .58rem; line-height: 1.45; }

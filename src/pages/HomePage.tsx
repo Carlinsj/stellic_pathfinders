@@ -8,7 +8,7 @@ import { Button, DataLabel, DataSourceLabel, Modal, QuickAction, SectionHeader, 
 import { useCampusFit } from '../data/CampusFitContext';
 import { useTenant } from '../data/TenantContext';
 import { activities, workoutFocuses } from '../data/catalog';
-import type { PrivacyLevel, VisitIntent } from '../domain/types';
+import type { VisitIntent } from '../domain/types';
 import { crowdLabel, formatTime, formatTimeInput, replaceTime } from '../lib/format';
 import { getLiveAggregate } from '../services/liveAggregation';
 import { findBetterRecommendationWindow, getRecommendationGuidance, recommendFacilities } from '../services/recommendation';
@@ -37,7 +37,6 @@ export function HomePage() {
   const [selectedFocuses, setSelectedFocuses] = useState<string[]>(['general_workout']);
   const [activity, setActivity] = useState('');
   const [duration, setDuration] = useState('60');
-  const [privacy, setPrivacy] = useState<PrivacyLevel>(state.currentUser.defaultPrivacyLevel);
   const [customLateTime, setCustomLateTime] = useState('18:30');
   const [extensionEnd, setExtensionEnd] = useState('');
   const recommendations = useMemo(() => recommendFacilities(state, state.now, 'back', undefined, 50), [state]);
@@ -78,7 +77,7 @@ export function HomePage() {
   };
 
   const handleSpontaneous = () => {
-    updateTenant(tenant, (current) => spontaneousCheckIn(current, { facilityId, intent: visitIntent, workoutFocuses: visitIntent === 'workout' ? selectedFocuses : [], activity: activity || undefined, expectedDurationMinutes: Number(duration), privacyLevel: privacy }), 'You’re checked in — live demand has updated');
+    updateTenant(tenant, (current) => spontaneousCheckIn(current, { facilityId, intent: visitIntent, workoutFocuses: visitIntent === 'workout' ? selectedFocuses : [], activity: activity || undefined, expectedDurationMinutes: Number(duration), privacyLevel: 'anonymous_aggregate' }), 'You’re checked in — live demand has updated');
     setCheckInStep(4);
   };
   const handleIntentChange = (value: string) => {
@@ -181,7 +180,6 @@ export function HomePage() {
       {checkInStep === 0 ? <div className="checkin-step"><h3>Which NYU gym are you at?</h3><div className="sheet-choice-list">{state.facilities.map((facility) => <button type="button" key={facility.id} className={facilityId === facility.id ? 'is-selected' : ''} onClick={() => { setFacilityId(facility.id); setActivity(''); }}><span>{facility.shortName.slice(0, 2).toUpperCase()}</span><strong>{facility.shortName}<small>{facility.address}</small></strong>{facilityId === facility.id ? <Check /> : null}</button>)}</div><Button size="large" onClick={() => setCheckInStep(1)}>Continue <ArrowRight /></Button></div> : null}
       {checkInStep === 1 ? <div className="checkin-step"><h3>What are you here for?</h3><SegmentedControl label="Visit purpose" value={visitIntent} onChange={handleIntentChange} options={[{ value: 'workout', label: 'Workout' }, { value: 'activity', label: 'Activity only' }]} />{visitIntent === 'activity' ? <label>Activity<select value={activity} onChange={(event) => handleActivityChange(event.target.value)}>{activities.filter((item) => state.facilities.some((facility) => facility.activities.includes(item.key))).map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}</select></label> : <WorkoutFocusPicker compact selected={selectedFocuses} onChange={setSelectedFocuses} description="Choose all the muscle groups you’re training today." />}<div className="sheet-step-actions"><Button variant="ghost" onClick={() => setCheckInStep(0)}>Back</Button><Button disabled={visitIntent === 'activity' ? !activity : selectedFocuses.length === 0} onClick={() => setCheckInStep(2)}>Continue <ArrowRight /></Button></div></div> : null}
       {checkInStep === 2 ? <div className="checkin-step"><h3>How long will you be here?</h3><SegmentedControl label="Expected duration" value={duration} onChange={setDuration} options={[{ value: '45', label: '45 min' }, { value: '60', label: '60 min' }, { value: '75', label: '75 min' }]} /><p className="sheet-helper">We’ll remind you near your expected finish and automatically close stale visits after the NYU grace period.</p><div className="sheet-step-actions"><Button variant="ghost" onClick={() => setCheckInStep(1)}>Back</Button><Button onClick={() => setCheckInStep(3)}>Review <ArrowRight /></Button></div></div> : null}
-      {checkInStep === 3 ? <div className="checkin-step checkin-review"><h3>Ready to check in?</h3><div className="checkin-review-card"><span>{state.facilities.find((facility) => facility.id === facilityId)?.shortName}</span><strong>{visitIntent === 'activity' ? activities.find((item) => item.key === activity)?.label : workoutFocusLabel(selectedFocuses)}</strong><small>{duration} minutes · CampusFit aggregate</small></div><label>Privacy<select value={privacy} onChange={(event) => setPrivacy(event.target.value as PrivacyLevel)}><option value="anonymous_aggregate">Anonymous aggregate</option><option value="friends_only">Friends only</option><option value="private">Private</option></select></label><div className="privacy-inline"><ShieldCheck /><p>Your name and exact visit details are never shown publicly.</p></div><div className="sheet-step-actions"><Button variant="ghost" onClick={() => setCheckInStep(2)}>Back</Button><Button size="large" onClick={handleSpontaneous}>{privacy === 'anonymous_aggregate' ? 'Check in anonymously' : 'Check in'} <ArrowRight /></Button></div></div> : null}
       {checkInStep === 3 ? <div className="checkin-step checkin-review-simple"><h3>Ready to check in?</h3><div className="checkin-review-card"><span>{state.facilities.find((facility) => facility.id === facilityId)?.shortName}</span><strong>{visitIntent === 'activity' ? activities.find((item) => item.key === activity)?.label : workoutFocusLabel(selectedFocuses)}</strong><small>{duration} minutes</small></div><div className="sheet-step-actions"><Button variant="ghost" onClick={() => setCheckInStep(2)}>Back</Button><Button size="large" onClick={handleSpontaneous}>Check in <ArrowRight /></Button></div><VisitPrivacyPicker /></div> : null}
       {checkInStep === 4 ? <div className="checkin-confirmation" role="status"><span><CheckCircle2 /></span><h3>You’re checked in at {state.facilities.find((facility) => facility.id === facilityId)?.shortName}.</h3><p>Your visit is contributing anonymously to approximate gym and workout-area demand.</p><Button size="large" onClick={closeCheckIn}>View active visit</Button></div> : null}
     </Modal>

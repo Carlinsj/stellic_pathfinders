@@ -9,6 +9,7 @@ async function pointerTap(page: Page, locator: Locator) {
 
 test('public landing explains sources and privacy', async ({ page }) => {
   await page.goto('/');
+  await expect(page.locator('.skip-link')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: /Know where and when/i })).toBeVisible();
   await expect(page.getByText(/All demonstration data is synthetic/i)).toBeVisible();
   await page.locator('#privacy').scrollIntoViewIfNeeded();
@@ -149,6 +150,7 @@ test('quick check-in accepts multiple muscle groups', async ({ page }) => {
   await dialog.getByRole('button', { name: /Continue/ }).click();
   await dialog.getByRole('button', { name: /Review/ }).click();
   await expect(dialog.getByRole('button', { name: 'Check in', exact: true })).toBeVisible();
+  await expect(dialog.locator('select')).toHaveCount(0);
   await expect(dialog.getByLabel('Check-in privacy note')).toContainText('only helps estimate how many people are at the gym');
   await expect(dialog.getByText('Private', { exact: true })).not.toBeVisible();
   await expect(dialog).toContainText('Chest + Legs');
@@ -328,6 +330,21 @@ test('mobile navigation and privacy states are accessible', async ({ page }, tes
   await pointerTap(page, navigation.getByRole('link', { name: 'Activity' }));
   await expect(page.getByText(/Your visits, nobody else’s/)).toBeVisible();
   await expect(page.getByText(/Private to Maya Chen/)).toBeVisible();
+});
+
+test('mobile check-in opens without a privacy selector or duplicated review', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile', 'mobile-only assertion');
+  await page.goto('/nyu/login');
+  await expect(page.locator('.skip-link')).toHaveCount(0);
+  await page.getByRole('button', { name: /Maya Chen/ }).click();
+  await page.getByRole('button', { name: 'I’m here', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: /Continue/ }).click();
+  await dialog.getByRole('button', { name: /Continue/ }).click();
+  await dialog.getByRole('button', { name: /Review/ }).click();
+  await expect(dialog.getByRole('heading', { name: 'Ready to check in?' })).toHaveCount(1);
+  await expect(dialog.getByRole('button', { name: 'Check in', exact: true })).toHaveCount(1);
+  await expect(dialog.locator('select')).toHaveCount(0);
 });
 
 test('the product is NYU-only with no university switcher or UIUC route', async ({ page }) => {
