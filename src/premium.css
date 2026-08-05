@@ -304,6 +304,26 @@ p { color: var(--muted); line-height: 1.55; }
 .quick-times button.is-selected { border-color: var(--violet); color: var(--violet); background: var(--violet-soft); }
 .info-callout { background: #f2edf5; }
 .info-callout svg { color: var(--violet); }
+.time-insights { margin-top: -18px; padding: 0 45px 28px; display: grid; gap: 13px; }
+.selected-time-read { padding: 14px 16px; border-radius: 15px; display: flex; align-items: flex-start; gap: 10px; background: #f3eef6; }
+.selected-time-read > svg { color: var(--violet); }
+.selected-time-read h3 { margin: 0; font-size: .78rem; }
+.selected-time-read p { margin: 4px 0 0; color: var(--muted); font-size: .61rem; }
+.suggested-time-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+.suggested-time-grid button { min-height: 92px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; display: grid; gap: 4px; text-align: left; color: var(--ink); background: #fcfbf8; }
+.suggested-time-grid button:hover { border-color: #b888cd; background: var(--violet-wash); }
+.suggested-time-grid button span { display: flex; align-items: center; gap: 4px; color: var(--violet); font-size: .52rem; font-weight: 850; text-transform: uppercase; letter-spacing: .08em; }
+.suggested-time-grid button span svg { width: 12px; }
+.suggested-time-grid button strong { font-size: .8rem; }
+.suggested-time-grid button small { color: var(--muted); font-size: .54rem; line-height: 1.35; }
+.time-disruptions { padding: 13px 15px; border: 1px solid #ead8af; border-radius: 14px; display: flex; align-items: flex-start; gap: 9px; background: #fff8e8; }
+.time-disruptions > svg { color: #9b6a19; }
+.time-disruptions strong { font-size: .67rem; }
+.time-disruptions p { margin: 5px 0 0; display: flex; align-items: flex-start; gap: 5px; color: #796744; font-size: .57rem; }
+.time-disruptions p svg { width: 12px; flex: 0 0 auto; }
+.time-insights details { color: var(--muted); font-size: .56rem; }
+.time-insights details summary { color: var(--violet); font-weight: 800; cursor: pointer; }
+.time-insights details p { margin-bottom: 0; line-height: 1.45; }
 .recommend-for-me { width: 100%; min-height: 70px; margin-bottom: 13px; padding: 13px 15px; border: 0; border-radius: 16px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; text-align: left; color: white; background: #2f2934; }
 .recommend-for-me > svg:first-child { color: #d8b8e8; }
 .recommend-for-me > svg:last-child { width: 17px; }
@@ -345,6 +365,8 @@ p { color: var(--muted); line-height: 1.55; }
   .ranking-explanation > div, .plan-demand-preview > div:first-child { flex-wrap: wrap; }
   .visit-extension-panel { margin-top: -21px; grid-template-columns: 1fr; align-items: stretch; }
   .visit-extension-panel > div:last-child { display: grid; }
+  .time-insights { padding-inline: 18px; }
+  .suggested-time-grid { grid-template-columns: 1fr; }
 }
 .plan-review-hero { border-radius: 20px; background: #2f2934; }
 .plan-review-hero h3 { color: white; }

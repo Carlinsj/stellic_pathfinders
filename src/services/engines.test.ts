@@ -9,6 +9,7 @@ import { getLiveAggregate } from './liveAggregation';
 import { compareRecommendations, findBetterRecommendationWindow, getRecommendationGuidance, recommendFacilities } from './recommendation';
 import { spontaneousCheckIn } from './visitLifecycle';
 import { getActiveVisitTiming, graceMinutesRemaining } from './visitReminders';
+import { getTimePlanningInsights } from './timePlanning';
 
 describe('deterministic demand engines', () => {
   it('matches the official NYU recreation activity catalog by facility', () => {
@@ -145,6 +146,16 @@ describe('deterministic demand engines', () => {
     expect(later).toBeDefined();
     expect(later!.recommendation.score).toBeGreaterThanOrEqual(current.score + 8);
     expect(later!.minutesSavedRange[1]).toBeGreaterThanOrEqual(later!.minutesSavedRange[0]);
+  });
+
+  it('suggests explainable times from historical patterns and reports equipment outages', () => {
+    const state = createDemoState('nyu');
+    const insights = getTimePlanningInsights(state, state.now, 'back', undefined, 50, ['cable']);
+    expect(insights.suggestions.length).toBeGreaterThan(0);
+    expect(insights.suggestions.length).toBeLessThanOrEqual(3);
+    expect(insights.sourceExplanation).toContain('prior-day patterns');
+    expect(insights.sourceExplanation).toContain('equipment outages');
+    expect(insights.disruptions.some((item) => item.includes('cable stations') && item.includes('out of service'))).toBe(true);
   });
 
   it('explains why a busier gym can rank above a calmer alternative', () => {
