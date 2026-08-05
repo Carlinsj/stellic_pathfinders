@@ -67,7 +67,7 @@ test('spontaneous activity-only visit works without location permission', async 
   await dialog.getByLabel('Activity').selectOption('badminton');
   await dialog.getByRole('button', { name: /Continue/ }).click();
   await dialog.getByRole('button', { name: /Review/ }).click();
-  await dialog.getByRole('button', { name: /Check in anonymously/ }).press('Enter');
+  await dialog.getByRole('button', { name: 'Check in', exact: true }).press('Enter');
   await expect(dialog).toContainText(/You’re checked in at Paulson/i);
   await dialog.getByRole('button', { name: /View active visit/ }).click();
   const activeVisit = page.locator('.active-visit-card');
@@ -126,7 +126,7 @@ test('planning shows gym demand, ranking reasons, and mandatory anonymous contri
   await expect(page.locator('.ranking-explanation')).toContainText('less busy overall');
   await expect(page.locator('.ranking-explanation')).toContainText('Workout-specific wait');
   await page.getByRole('button', { name: /Continue/ }).click();
-  await expect(page.getByLabel('Anonymous demand contribution')).toContainText('never shown to other students');
+  await expect(page.getByLabel('Check-in privacy note')).toContainText('Your name is never shared');
   await expect(page.getByRole('radio')).toHaveCount(0);
   await expect(page.getByText('Friends only')).not.toBeVisible();
 });
@@ -143,7 +143,8 @@ test('quick check-in accepts multiple muscle groups', async ({ page }) => {
   await focusPicker.getByRole('button', { name: 'General workout', exact: true }).click();
   await dialog.getByRole('button', { name: /Continue/ }).click();
   await dialog.getByRole('button', { name: /Review/ }).click();
-  await expect(dialog.getByLabel('Anonymous demand contribution')).toContainText('workout areas may be in demand');
+  await expect(dialog.getByRole('button', { name: 'Check in', exact: true })).toBeVisible();
+  await expect(dialog.getByLabel('Check-in privacy note')).toContainText('only helps estimate how many people are at the gym');
   await expect(dialog.getByText('Private', { exact: true })).not.toBeVisible();
   await expect(dialog).toContainText('Chest + Legs');
 });

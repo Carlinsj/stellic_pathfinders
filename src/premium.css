@@ -333,13 +333,12 @@ p { color: var(--muted); line-height: 1.55; }
 .plan-demand-preview > div:not(:first-child) > span:first-child { flex: 1; font-size: .67rem; }
 .plan-demand-preview > div:not(:first-child) b { min-width: 68px; text-align: right; font-size: .65rem; }
 .plan-demand-preview > small { display: block; margin-top: 11px; color: var(--muted); font-size: .55rem; line-height: 1.45; }
-.wizard-panel > label:has(option[value="friends_only"]), .checkin-review > label:has(option[value="private"]), .checkin-review > .privacy-inline { display: none; }
-.privacy-picker { margin: 0 45px 26px; padding: 18px; border: 1px solid #cdb2da; border-radius: 17px; display: flex; align-items: flex-start; gap: 10px; background: var(--violet-wash); }
+.wizard-panel > label:has(option[value="friends_only"]), .checkin-review { display: none; }
+.privacy-picker { margin: 0 45px 26px; padding: 13px 2px 0; border-top: 1px solid var(--line); display: flex; align-items: flex-start; gap: 8px; background: transparent; }
 .privacy-picker > svg { flex: 0 0 auto; color: var(--violet); }
-.privacy-picker strong, .privacy-picker small { display: block; }
-.privacy-picker strong { font-size: .72rem; }
-.privacy-picker small { margin-top: 4px; color: var(--muted); font-size: .56rem; line-height: 1.4; }
+.privacy-picker small { color: var(--muted); font-size: .58rem; line-height: 1.45; }
 .modal-sheet > .privacy-picker { margin: 0; }
+.checkin-review-simple .privacy-picker { margin: 0; }
 @media (max-width: 680px) {
   .privacy-picker { margin: 0 18px 20px; }
   .ranking-explanation > div, .plan-demand-preview > div:first-child { flex-wrap: wrap; }
