@@ -37,7 +37,6 @@ export function HomePage() {
   const promotedWindow = guidance.verdict === 'wait_recommended' ? betterWindow : undefined;
   const planTarget = promotedWindow?.recommendation ?? best;
   const planTime = promotedWindow ? formatTimeInput(promotedWindow.at, state.university.timezone) : undefined;
-  const currentFitScore = Math.min(100, Math.max(0, best.score));
   const activeVisit = state.visits.find((visit) => visit.userId === state.currentUser.id && visit.status === 'checked_in');
   const upcomingVisit = state.visits.find((visit) => visit.userId === state.currentUser.id && (visit.status === 'planned' || visit.status === 'delayed'));
   const activeFacility = activeVisit ? state.facilities.find((facility) => facility.id === activeVisit.facilityId) : undefined;
@@ -100,25 +99,17 @@ export function HomePage() {
 
     <section className="recommendation-hero">
       <div className="recommendation-copy">
-        <DataLabel>Best move right now</DataLabel>
-        <span className="kicker"><Sparkles size={14} />{guidance.label}</span>
+        <div className="recommendation-topline">
+          <DataLabel>Best move right now</DataLabel>
+          <span className="kicker recommendation-guidance"><Sparkles size={14} />{guidance.label}</span>
+        </div>
         <h2>{best.facility.shortName}</h2>
         <div className="recommendation-meta">
           <StatusPill level={best.forecast.crowdLevel} />
           <span><MapPin size={15} />{best.facility.travelMinutes} min away</span>
           <span><Clock3 size={15} />Open now</span>
-          <span>{best.forecast.confidence} confidence</span>
         </div>
-        <div className="recommendation-live">
-          <UsersRound size={19} />
-          <div>
-            <strong>{bestAggregate.campusFitCheckIns} CampusFit users checked in</strong>
-            <small>{bestAggregate.sourceExplanation}</small>
-          </div>
-        </div>
-        <p><strong>{guidance.summary}</strong> {best.explanation} For a back workout, your visit is estimated at <strong>{best.duration.durationRange[0]}–{best.duration.durationRange[1]} minutes</strong>.</p>
-        <DataSourceLabel>CampusFit prediction · {best.forecast.expectedRange[0]}–{best.forecast.expectedRange[1]} range · {best.forecast.confidence} confidence</DataSourceLabel>
-        <p className="recommendation-source">{best.forecast.sourceExplanation}</p>
+        <p className="recommendation-summary">{guidance.summary}</p>
         {promotedWindow ? <div className="recommendation-better-window">
           <Clock3 size={18} />
           <div><strong>Better option at {formatTime(promotedWindow.at, state.university.timezone)}</strong><span>{promotedWindow.explanation}</span></div>
@@ -129,12 +120,25 @@ export function HomePage() {
           </Link>
           <Link className="button button--ghost button--medium" to={`/${tenant}/facilities`}>Compare gyms</Link>
         </div>
-      </div>
-      <div className="recommendation-score">
-        <span>{guidance.verdict === 'strong_fit' ? 'FIT SCORE' : 'CURRENT FIT'}</span>
-        <strong>{currentFitScore}</strong>
-        <small>for back at {formatTime(state.now, state.university.timezone)}</small>
-        <div className="score-ring" style={{ '--score': `${currentFitScore * 3.6}deg` } as React.CSSProperties} />
+        <div className="recommendation-highlights">
+          <div>
+            <span className="recommendation-highlight-icon"><Clock3 size={19} /></span>
+            <span><small>Estimated visit</small><strong>{best.duration.durationRange[0]}–{best.duration.durationRange[1]} minutes</strong></span>
+          </div>
+          <div>
+            <span className="recommendation-highlight-icon"><UsersRound size={19} /></span>
+            <span><small>Live CampusFit activity</small><strong>{bestAggregate.campusFitCheckIns} CampusFit users checked in</strong></span>
+          </div>
+        </div>
+        <p className="recommendation-reason">{best.explanation}</p>
+        <details className="recommendation-details">
+          <summary>How CampusFit calculated this</summary>
+          <div>
+            <DataSourceLabel>CampusFit prediction · {best.forecast.expectedRange[0]}–{best.forecast.expectedRange[1]} range · {best.forecast.confidence} confidence</DataSourceLabel>
+            <p>{best.forecast.sourceExplanation}</p>
+            <p><strong>Live check-ins:</strong> {bestAggregate.sourceExplanation}</p>
+          </div>
+        </details>
       </div>
     </section>
 

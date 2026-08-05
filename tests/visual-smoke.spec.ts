@@ -53,7 +53,17 @@ test('student home is overflow-free at required product widths', async ({ page }
     await expect(page.getByRole('heading', { name: /Good evening, Maya/ })).toBeVisible();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(1);
-    if (width < 961) await expect(page.getByRole('navigation', { name: 'Mobile navigation' })).toBeVisible();
+    if (width < 961) {
+      const mobileNavigation = page.getByRole('navigation', { name: 'Mobile navigation' });
+      await expect(mobileNavigation).toBeVisible();
+      if (width === 390) {
+        const recommendationAction = page.locator('.recommendation-hero .button--primary');
+        const [actionBounds, navigationBounds] = await Promise.all([recommendationAction.boundingBox(), mobileNavigation.boundingBox()]);
+        expect(actionBounds).not.toBeNull();
+        expect(navigationBounds).not.toBeNull();
+        expect(actionBounds!.y + actionBounds!.height).toBeLessThanOrEqual(navigationBounds!.y);
+      }
+    }
     else await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible();
     await page.screenshot({ path: `test-results/campusfit-home-${width}.png`, fullPage: true });
   }
