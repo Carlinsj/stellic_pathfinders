@@ -161,6 +161,16 @@ test('NYU home surfaces all four verified facilities', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Brooklyn' })).toBeVisible();
 });
 
+test('visit history shows actual and expected workout duration', async ({ page }) => {
+  await page.goto('/nyu/login');
+  await page.getByRole('button', { name: /Maya Chen/ }).click();
+  await page.goto('/nyu/history');
+  const completedVisit = page.locator('.history-list article').filter({ hasText: 'Completed' }).first();
+  await expect(completedVisit).toContainText('Actual');
+  await expect(completedVisit).toContainText('Expected');
+  await expect(completedVisit.locator('.history-duration')).toContainText(/\d+ min/);
+});
+
 test('NYU facility activity tabs match the verified recreation catalog', async ({ page }) => {
   await page.goto('/nyu/login');
   await page.getByRole('button', { name: /Maya Chen/ }).click();

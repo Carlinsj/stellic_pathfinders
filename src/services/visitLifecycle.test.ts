@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createDemoState } from '../data/seed';
 import { addMinutes } from '../lib/format';
 import { getLiveAggregate } from './liveAggregation';
+import { getRecordedVisitDurationMinutes } from './visitDuration';
 import {
   VisitLifecycleError, autoCloseStaleVisits, cancelVisit, canTransition, changeActivity, changeFacility,
   changeWorkoutFocus, changeWorkoutFocuses, checkInPlannedVisit, checkOutVisit, createPlan, delayVisit, expirePastPlans,
@@ -112,6 +113,7 @@ describe('visit state machine', () => {
     const completed = checkOutVisit(checkedIn, id, 'about_as_expected');
     expect(completed.visits.at(-1)?.status).toBe('completed');
     expect(getLiveAggregate(completed, draft.facilityId).campusFitCheckIns).toBe(before - 1);
+    expect(getRecordedVisitDurationMinutes(completed.visits.at(-1)!)).toBe(0);
   });
 
   it('extends an active visit and changes workout/activity', () => {
