@@ -1,5 +1,6 @@
 import { AlertTriangle, Clock3, Dumbbell, Info, SlidersHorizontal, Sparkles } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { DataLabel, StatusPill } from '../components/ui';
 import { WorkoutEquipmentStatus } from '../components/WorkoutEquipmentStatus';
 import { activities, workoutFocuses } from '../data/catalog';
@@ -8,9 +9,12 @@ import { calculateEquipmentDemand } from '../services/equipmentDemand';
 
 export function ActivityPage() {
   const { state } = useTenant();
-  const [facilityId, setFacilityId] = useState(state.currentUser.preferredFacilityId ?? state.facilities[0]!.id);
+  const [search] = useSearchParams();
+  const requestedFacility = search.get('facility');
+  const requestedFocus = search.get('focus');
+  const [facilityId, setFacilityId] = useState(state.facilities.some((facility) => facility.id === requestedFacility) ? requestedFacility! : state.currentUser.preferredFacilityId ?? state.facilities[0]!.id);
   const [mode, setMode] = useState<'focus' | 'activity'>('focus');
-  const [selection, setSelection] = useState('back');
+  const [selection, setSelection] = useState(workoutFocuses.some((focus) => focus.key === requestedFocus) ? requestedFocus! : 'back');
   const facility = state.facilities.find((item) => item.id === facilityId)!;
   const demands = useMemo(() => calculateEquipmentDemand(state, facilityId, state.now, mode === 'focus' ? selection : undefined, mode === 'activity' ? selection : undefined).filter((item) => mode === 'activity' || state.equipmentTypes.find((type) => type.id === item.equipmentTypeId)?.supportedFocuses.includes(selection)).slice(0, 10), [state, facilityId, mode, selection]);
   return <div className="page-stack activity-page"><header className="page-header"><div><DataLabel>Equipment & activity demand</DataLabel><h1>A crowd score isn’t enough.</h1><p>See the resources your workout or activity needs—and where queues are likely to form.</p></div></header>

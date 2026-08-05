@@ -9,6 +9,7 @@ async function pointerTap(page: Page, locator: Locator) {
 
 test('public landing explains sources and privacy', async ({ page }) => {
   await page.goto('/');
+  await expect(page.locator('.skip-link')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: /Know where and when/i })).toBeVisible();
   await expect(page.getByText(/All demonstration data is synthetic/i)).toBeVisible();
   await page.locator('#privacy').scrollIntoViewIfNeeded();
@@ -18,44 +19,58 @@ test('public landing explains sources and privacy', async ({ page }) => {
 test('complete NYU planned visit with delay, check-in, and check-out', async ({ page }) => {
   await page.goto('/nyu/login');
   await page.getByRole('button', { name: /Maya Chen/ }).click();
-  await expect(page.getByRole('heading', { name: /Good evening, Maya/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Good (morning|afternoon|evening), Maya/ })).toBeVisible();
   const recommendationHero = page.locator('.recommendation-hero');
-  await expect(recommendationHero).toContainText(/Best available now — still busy/i);
   await expect(recommendationHero).toContainText(/CampusFit users checked in/);
-  const promotedPlan = recommendationHero.getByRole('link', { name: /Plan Palladium at 8:15 PM/i });
-  await expect(promotedPlan).toBeVisible();
-  await promotedPlan.click();
-  await expect(page.getByLabel('Arrival time')).toHaveValue('20:15');
-  await expect(page.getByRole('button', { name: /8:15 PM CampusFit pick/i })).toHaveClass(/is-selected/);
-  await page.getByRole('button', { name: /6:00 PM/ }).click();
+  await recommendationHero.locator('.hero-actions .button--primary').click();
+  await expect(page.getByRole('heading', { name: /What are you doing/i })).toBeVisible();
   await page.getByRole('button', { name: /Continue/ }).click();
-  await page.getByRole('button', { name: 'Biceps', exact: true }).click();
+  const arrivalTime = await page.evaluate(() => {
+    const date = new Date(Date.now() + 60 * 60_000);
+    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  });
+  await page.getByLabel('Arrival time').fill(arrivalTime);
   await page.getByRole('button', { name: /Continue/ }).click();
-  await page.getByRole('button', { name: /Palladium/ }).click();
+  await page.locator('.compare-option:not(:disabled)').first().click();
   await page.getByRole('button', { name: /Continue/ }).click();
   await page.getByRole('button', { name: /Save visit plan/ }).click();
   const upcoming = page.locator('.upcoming-strip');
-  await expect(upcoming).toContainText('Palladium');
+  await expect(upcoming).toBeVisible();
   await upcoming.getByRole('button', { name: /Running late/ }).click();
   const delayButton = page.getByRole('button', { name: /20 minutes late/ });
   await pointerTap(page, delayButton);
   await expect(upcoming).toContainText('Updated arrival');
   await upcoming.getByRole('button', { name: /I’m here/ }).press('Enter');
   const active = page.locator('.active-visit-card');
-  await expect(active).toContainText('You’re at Palladium');
-  await active.getByRole('button', { name: /I’m done/ }).press('Enter');
+  await expect(active).toContainText('You’re at');
+  await expect(page.getByLabel('New finish time')).toBeVisible();
+  await expect(active.getByRole('button', { name: /Extend 20 min/ })).not.toBeVisible();
+  const laterFinish = await page.evaluate(() => {
+    const date = new Date(Date.now() + 90 * 60_000);
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+    return local.toISOString().slice(0, 16);
+  });
+  await page.getByLabel('New finish time').fill(laterFinish);
+  await page.getByRole('button', { name: /Extend until this time/ }).click();
+  await expect(page.getByRole('status')).toContainText(/Visit extended until/);
+  await active.getByRole('button', { name: /Wrap up workout/ }).press('Enter');
   await expect(active).toHaveCount(0);
 });
 
 test('spontaneous activity-only visit works without location permission', async ({ page }) => {
   await page.goto('/nyu/login');
   await page.getByRole('button', { name: /Maya Chen/ }).click();
-  await page.getByRole('button', { name: /I’m here/ }).click();
+  await page.getByRole('button', { name: 'I’m here', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toContainText('Manual facility selection');
+  await dialog.getByRole('button', { name: /Continue/ }).click();
   await dialog.getByRole('button', { name: 'Activity only' }).click();
   await dialog.getByLabel('Activity').selectOption('badminton');
-  await dialog.getByRole('button', { name: /Check in/ }).press('Enter');
+  await dialog.getByRole('button', { name: /Continue/ }).click();
+  await dialog.getByRole('button', { name: /Review/ }).click();
+  await dialog.getByRole('button', { name: 'Check in', exact: true }).press('Enter');
+  await expect(dialog).toContainText(/You’re checked in at Paulson/i);
+  await dialog.getByRole('button', { name: /View active visit/ }).click();
   const activeVisit = page.locator('.active-visit-card');
   await expect(activeVisit).toContainText('Active activity visit');
   await expect(activeVisit).toContainText('Badminton');
@@ -66,10 +81,10 @@ test('activity-only planning ranks compatible facilities without a workout focus
   await page.goto('/nyu/login');
   await page.getByRole('button', { name: /Maya Chen/ }).click();
   await page.getByRole('link', { name: 'Plan' }).first().click();
-  await page.getByRole('button', { name: /Continue/ }).click();
   await page.getByRole('button', { name: 'Activity only' }).click();
   await page.getByLabel('Choose your activity').selectOption('badminton');
   await expect(page.getByText(/No workout focus or strength-equipment demand will be added/i)).toBeVisible();
+  await page.getByRole('button', { name: /Continue/ }).click();
   await page.getByRole('button', { name: /Continue/ }).click();
   await expect(page.getByText(/Ranked for badminton/i)).toBeVisible();
   await expect(page.getByRole('button', { name: /404 Fitness/ })).toBeDisabled();
@@ -80,11 +95,82 @@ test('activity-only planning ranks compatible facilities without a workout focus
   await expect(page.locator('.upcoming-strip')).toContainText('Badminton');
 });
 
+test('students can plan a workout with multiple muscle groups', async ({ page }) => {
+  await page.goto('/nyu/login');
+  await page.getByRole('button', { name: /Maya Chen/ }).click();
+  await page.getByRole('link', { name: 'Plan' }).first().click();
+  const focusPicker = page.getByRole('group', { name: 'Muscle groups' });
+  await expect(focusPicker.getByRole('button', { name: 'Back', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await focusPicker.getByRole('button', { name: 'Chest', exact: true }).click();
+  await focusPicker.getByRole('button', { name: 'Legs', exact: true }).click();
+  await focusPicker.getByRole('button', { name: 'Back', exact: true }).click();
+  await expect(focusPicker.getByRole('button', { name: 'Chest', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(focusPicker.getByRole('button', { name: 'Legs', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: /Continue/ }).click();
+  await page.getByRole('button', { name: /Continue/ }).click();
+  await page.getByRole('button', { name: /Continue/ }).click();
+  await expect(page.locator('.plan-review-hero')).toContainText('Chest + Legs');
+  await page.getByRole('button', { name: /Save visit plan/ }).click();
+  await expect(page.locator('.upcoming-strip')).toContainText('Chest + Legs');
+});
+
+test('planning shows gym demand, ranking reasons, and mandatory anonymous contribution', async ({ page }) => {
+  await page.goto('/nyu/login');
+  await page.getByRole('button', { name: /Maya Chen/ }).click();
+  await page.getByRole('link', { name: 'Plan' }).first().click();
+  await page.getByRole('button', { name: /Continue/ }).click();
+  await expect(page.getByText('Better after 7:30')).toHaveCount(0);
+  await page.getByRole('button', { name: /Tomorrow/ }).click();
+  await page.getByLabel('Arrival time').fill('18:00');
+  await expect(page.getByRole('heading', { name: /Estimate for/ })).toBeVisible();
+  await expect(page.locator('.suggested-time-grid button')).toHaveCount(3);
+  await expect(page.getByText(/Things that may affect your visit/)).toBeVisible();
+  await expect(page.getByText(/out of service/).first()).toBeVisible();
+  await page.getByRole('button', { name: /Continue/ }).click();
+  await page.locator('.compare-option:not(:disabled)').nth(1).click();
+  await expect(page.getByRole('heading', { name: /Demand for Back at/ })).toBeVisible();
+  await expect(page.locator('.ranking-explanation')).toContainText('ranks higher');
+  await expect(page.locator('.ranking-explanation')).toContainText('Workout-specific wait');
+  await page.getByRole('button', { name: /Continue/ }).click();
+  await expect(page.getByLabel('Check-in privacy note')).toContainText('Your name is never shared');
+  await expect(page.getByRole('radio')).toHaveCount(0);
+  await expect(page.getByText('Friends only')).not.toBeVisible();
+});
+
+test('quick check-in accepts multiple muscle groups', async ({ page }) => {
+  await page.goto('/nyu/login');
+  await page.getByRole('button', { name: /Maya Chen/ }).click();
+  await page.getByRole('button', { name: 'I’m here', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: /Continue/ }).click();
+  const focusPicker = dialog.getByRole('group', { name: 'Muscle groups' });
+  await focusPicker.getByRole('button', { name: 'Chest', exact: true }).click();
+  await focusPicker.getByRole('button', { name: 'Legs', exact: true }).click();
+  await focusPicker.getByRole('button', { name: 'General workout', exact: true }).click();
+  await dialog.getByRole('button', { name: /Continue/ }).click();
+  await dialog.getByRole('button', { name: /Review/ }).click();
+  await expect(dialog.getByRole('button', { name: 'Check in', exact: true })).toBeVisible();
+  await expect(dialog.locator('select')).toHaveCount(0);
+  await expect(dialog.getByLabel('Check-in privacy note')).toContainText('only helps estimate how many people are at the gym');
+  await expect(dialog.getByText('Private', { exact: true })).not.toBeVisible();
+  await expect(dialog).toContainText('Chest + Legs');
+});
+
 test('NYU home surfaces all four verified facilities', async ({ page }) => {
   await page.goto('/nyu/login');
   await page.getByRole('button', { name: /Maya Chen/ }).click();
   await expect(page.locator('.facility-grid--home .facility-card')).toHaveCount(4);
   await expect(page.getByRole('heading', { name: 'Brooklyn' })).toBeVisible();
+});
+
+test('visit history shows actual and expected workout duration', async ({ page }) => {
+  await page.goto('/nyu/login');
+  await page.getByRole('button', { name: /Maya Chen/ }).click();
+  await page.goto('/nyu/history');
+  const completedVisit = page.locator('.history-list article').filter({ hasText: 'Completed' }).first();
+  await expect(completedVisit).toContainText('Actual');
+  await expect(completedVisit).toContainText('Expected');
+  await expect(completedVisit.locator('.history-duration')).toContainText(/\d+ min/);
 });
 
 test('NYU facility activity tabs match the verified recreation catalog', async ({ page }) => {
@@ -117,7 +203,7 @@ test('NYU facility activity tabs match the verified recreation catalog', async (
 test('students see workout-specific equipment outages without staff controls', async ({ page }) => {
   await page.goto('/nyu/login');
   await page.getByRole('button', { name: /Maya Chen/ }).click();
-  await page.getByRole('link', { name: 'Equipment' }).click();
+  await page.getByRole('link', { name: 'Demand', exact: true }).first().click();
 
   const status = page.locator('.workout-equipment-status');
   await expect(status.getByRole('heading', { name: 'Equipment status for Back' })).toBeVisible();
@@ -152,7 +238,7 @@ test('student and staff portals enforce separate role access', async ({ page }) 
 
   await page.goto('/nyu/staff');
   await expect(page).toHaveURL(/\/nyu\/home$/);
-  await expect(page.getByRole('heading', { name: /Good evening, Maya/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Good (morning|afternoon|evening), Maya/ })).toBeVisible();
 
   await page.goto('/nyu/staff-login');
   await expect(page.getByRole('button', { name: /Sam Ortiz/ })).toBeVisible();
@@ -241,7 +327,30 @@ test('mobile navigation and privacy states are accessible', async ({ page }, tes
   await page.getByRole('button', { name: /Maya Chen/ }).click();
   const navigation = page.getByRole('navigation', { name: 'Mobile navigation' });
   await expect(navigation).toBeVisible();
-  await pointerTap(page, navigation.getByRole('link', { name: 'History' }));
+  await pointerTap(page, navigation.getByRole('link', { name: 'Activity' }));
   await expect(page.getByText(/Your visits, nobody else’s/)).toBeVisible();
   await expect(page.getByText(/Private to Maya Chen/)).toBeVisible();
+});
+
+test('mobile check-in opens without a privacy selector or duplicated review', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile', 'mobile-only assertion');
+  await page.goto('/nyu/login');
+  await expect(page.locator('.skip-link')).toHaveCount(0);
+  await page.getByRole('button', { name: /Maya Chen/ }).click();
+  await page.getByRole('button', { name: 'I’m here', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: /Continue/ }).click();
+  await dialog.getByRole('button', { name: /Continue/ }).click();
+  await dialog.getByRole('button', { name: /Review/ }).click();
+  await expect(dialog.getByRole('heading', { name: 'Ready to check in?' })).toHaveCount(1);
+  await expect(dialog.getByRole('button', { name: 'Check in', exact: true })).toHaveCount(1);
+  await expect(dialog.locator('select')).toHaveCount(0);
+});
+
+test('the product is NYU-only with no university switcher or UIUC route', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('body')).not.toContainText(/UIUC|University of Illinois/i);
+  await expect(page.locator('a[href*="uiuc"], button:has-text("Switch university")')).toHaveCount(0);
+  await page.goto('/uiuc');
+  await expect(page.getByRole('heading', { name: /That route missed the gym/i })).toBeVisible();
 });

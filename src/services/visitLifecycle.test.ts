@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { createDemoState } from '../data/seed';
 import { addMinutes } from '../lib/format';
 import { getLiveAggregate } from './liveAggregation';
+import { getRecordedVisitDurationMinutes } from './visitDuration';
 import {
   VisitLifecycleError, autoCloseStaleVisits, cancelVisit, canTransition, changeActivity, changeFacility,
-  changeWorkoutFocus, checkInPlannedVisit, checkOutVisit, createPlan, delayVisit, expirePastPlans,
-  extendVisit, spontaneousCheckIn
+  changeWorkoutFocus, changeWorkoutFocuses, checkInPlannedVisit, checkOutVisit, createPlan, delayVisit, expirePastPlans,
+  extendVisit, extendVisitUntil, spontaneousCheckIn
 } from './visitLifecycle';
 
 const draft = { facilityId: 'nyu_palladium', intent: 'workout' as const, primaryWorkoutFocus: 'back', secondaryFocuses: ['biceps'], expectedDurationMinutes: 50, privacyLevel: 'anonymous_aggregate' as const };
@@ -29,6 +30,21 @@ describe('visit state machine', () => {
     expect(delayed.visits.at(-1)?.status).toBe('delayed');
     expect(Date.parse(delayed.visits.at(-1)!.plannedArrivalAt!) - Date.parse(visit.plannedArrivalAt!)).toBe(20 * 60_000);
     expect(delayed.history.at(-1)?.newStatus).toBe('delayed');
+  });
+
+  it('stores multiple muscle groups and combines their equipment needs', () => {
+    const initial = createDemoState('nyu');
+    const planned = createPlan(initial, {
+      ...draft,
+      workoutFocuses: ['chest', 'legs'],
+      primaryWorkoutFocus: undefined,
+      secondaryFocuses: undefined,
+      plannedArrivalAt: addMinutes(initial.now, 30)
+    });
+    const visit = planned.visits.at(-1)!;
+    expect(visit.primaryWorkoutFocus).toBe('chest');
+    expect(visit.secondaryFocuses).toEqual(['legs']);
+    expect(visit.equipmentNeeds).toEqual(expect.arrayContaining(['bench', 'squat_rack', 'leg_press']));
   });
 
   it('changes gym only within the current tenant', () => {
@@ -97,6 +113,7 @@ describe('visit state machine', () => {
     const completed = checkOutVisit(checkedIn, id, 'about_as_expected');
     expect(completed.visits.at(-1)?.status).toBe('completed');
     expect(getLiveAggregate(completed, draft.facilityId).campusFitCheckIns).toBe(before - 1);
+    expect(getRecordedVisitDurationMinutes(completed.visits.at(-1)!)).toBe(0);
   });
 
   it('extends an active visit and changes workout/activity', () => {
@@ -107,7 +124,20 @@ describe('visit state machine', () => {
     expect(Date.parse(extended.visits.at(-1)!.expectedEndAt!) - Date.parse(oldEnd)).toBe(20 * 60_000);
     const focusChanged = changeWorkoutFocus(extended, id, 'arms');
     expect(focusChanged.visits.at(-1)?.primaryWorkoutFocus).toBe('arms');
-    expect(changeActivity(focusChanged, id, 'climbing').visits.at(-1)?.activity).toBe('climbing');
+    const multiFocusChanged = changeWorkoutFocuses(focusChanged, id, ['chest', 'legs']);
+    expect(multiFocusChanged.visits.at(-1)?.secondaryFocuses).toEqual(['legs']);
+    expect(multiFocusChanged.visits.at(-1)?.equipmentNeeds).toEqual(expect.arrayContaining(['bench', 'squat_rack']));
+    expect(changeActivity(multiFocusChanged, id, 'climbing').visits.at(-1)?.activity).toBe('climbing');
+  });
+
+  it('extends an active visit to any future finish time and resets the 30-minute grace period', () => {
+    const checkedIn = spontaneousCheckIn(createDemoState('nyu'), draft);
+    const visit = checkedIn.visits.at(-1)!;
+    const finish = addMinutes(visit.expectedEndAt!, 47);
+    const extended = extendVisitUntil(checkedIn, visit.id, finish).visits.at(-1)!;
+    expect(extended.expectedEndAt).toBe(finish);
+    expect(Date.parse(extended.autoCloseAt!) - Date.parse(finish)).toBe(30 * 60_000);
+    expect(() => extendVisitUntil(checkedIn, visit.id, checkedIn.now)).toThrow('must be in the future');
   });
 
   it('automatically closes stale visits with reduced historical weight', () => {

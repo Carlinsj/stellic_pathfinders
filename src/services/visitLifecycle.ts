@@ -1,5 +1,6 @@
 import type { DemoState, PrivacyLevel, Visit, VisitHistoryEntry, VisitIntent, VisitStatus } from '../domain/types';
-import { activityEquipment, focusEquipmentWeights } from '../data/catalog';
+import { activityEquipment } from '../data/catalog';
+import { getVisitWorkoutFocuses, getWorkoutFocusEquipmentKeys, normalizeWorkoutFocuses, splitWorkoutFocuses } from './workoutFocus';
 
 export class VisitLifecycleError extends Error {}
 
@@ -62,6 +63,7 @@ export interface VisitDraft {
   facilityId: string;
   plannedArrivalAt?: string;
   intent: VisitIntent;
+  workoutFocuses?: string[];
   primaryWorkoutFocus?: string;
   secondaryFocuses?: string[];
   activity?: string;
@@ -70,10 +72,13 @@ export interface VisitDraft {
   privacyLevel: PrivacyLevel;
 }
 
+const workoutFocusesForDraft = (draft: VisitDraft): string[] =>
+  normalizeWorkoutFocuses(draft.workoutFocuses ?? draft.primaryWorkoutFocus, draft.secondaryFocuses);
+
 const validateVisitDraft = (state: DemoState, draft: VisitDraft): void => {
   const facility = state.facilities.find((item) => item.id === draft.facilityId);
   if (!facility) throw new VisitLifecycleError('Facility is unavailable for this university');
-  if (draft.intent === 'workout' && !draft.primaryWorkoutFocus) {
+  if (draft.intent === 'workout' && workoutFocusesForDraft(draft).length === 0) {
     throw new VisitLifecycleError('A workout focus is required for a workout visit');
   }
   if (draft.intent === 'activity' && !draft.activity) {
@@ -85,7 +90,7 @@ const validateVisitDraft = (state: DemoState, draft: VisitDraft): void => {
 };
 
 const equipmentNeedsForDraft = (draft: VisitDraft): string[] => [
-  ...(draft.intent === 'workout' && draft.primaryWorkoutFocus ? draft.equipmentNeeds ?? Object.keys(focusEquipmentWeights[draft.primaryWorkoutFocus] ?? {}) : []),
+  ...(draft.intent === 'workout' ? draft.equipmentNeeds ?? getWorkoutFocusEquipmentKeys(workoutFocusesForDraft(draft)) : []),
   ...(draft.activity ? activityEquipment[draft.activity] ?? [] : [])
 ];
 
@@ -93,6 +98,7 @@ export const createPlan = (state: DemoState, draft: VisitDraft): DemoState => {
   validateVisitDraft(state, draft);
   if (!draft.plannedArrivalAt) throw new VisitLifecycleError('A planned arrival time is required');
   const now = state.now;
+  const visitFocuses = splitWorkoutFocuses(draft.intent === 'workout' ? workoutFocusesForDraft(draft) : []);
   const visit: Visit = {
     id: `visit_${state.currentUser.id}_${Date.parse(now)}_${state.visits.length}`,
     universityId: state.university.id,
@@ -104,11 +110,11 @@ export const createPlan = (state: DemoState, draft: VisitDraft): DemoState => {
     plannedArrivalAt: draft.plannedArrivalAt,
     originalPlannedArrivalAt: draft.plannedArrivalAt,
     expectedDurationMinutes: draft.expectedDurationMinutes,
-    primaryWorkoutFocus: draft.intent === 'workout' ? draft.primaryWorkoutFocus : undefined,
-    secondaryFocuses: draft.intent === 'workout' ? draft.secondaryFocuses ?? [] : [],
+    primaryWorkoutFocus: visitFocuses.primaryWorkoutFocus,
+    secondaryFocuses: visitFocuses.secondaryFocuses,
     activity: draft.activity,
     equipmentNeeds: [...new Set(equipmentNeedsForDraft(draft))],
-    privacyLevel: draft.privacyLevel,
+    privacyLevel: 'anonymous_aggregate',
     reliabilityWeight: 1,
     createdAt: now,
     updatedAt: now
@@ -125,6 +131,7 @@ export const spontaneousCheckIn = (state: DemoState, draft: VisitDraft): DemoSta
   validateVisitDraft(state, draft);
   const now = state.now;
   const expectedEndAt = addMinutes(now, draft.expectedDurationMinutes);
+  const visitFocuses = splitWorkoutFocuses(draft.intent === 'workout' ? workoutFocusesForDraft(draft) : []);
   const visit: Visit = {
     id: `visit_${state.currentUser.id}_${Date.parse(now)}_${state.visits.length}`,
     universityId: state.university.id,
@@ -138,11 +145,11 @@ export const spontaneousCheckIn = (state: DemoState, draft: VisitDraft): DemoSta
     expectedEndAt,
     autoCloseAt: addMinutes(expectedEndAt, state.university.autoCloseGraceMinutes),
     lastActivityAt: now,
-    primaryWorkoutFocus: draft.intent === 'workout' ? draft.primaryWorkoutFocus : undefined,
-    secondaryFocuses: draft.intent === 'workout' ? draft.secondaryFocuses ?? [] : [],
+    primaryWorkoutFocus: visitFocuses.primaryWorkoutFocus,
+    secondaryFocuses: visitFocuses.secondaryFocuses,
     activity: draft.activity,
     equipmentNeeds: [...new Set(equipmentNeedsForDraft(draft))],
-    privacyLevel: draft.privacyLevel,
+    privacyLevel: 'anonymous_aggregate',
     reliabilityWeight: 1,
     createdAt: now,
     updatedAt: now
@@ -230,20 +237,46 @@ export const extendVisit = (state: DemoState, visitId: string, minutes = 20): De
   });
 };
 
-export const changeWorkoutFocus = (state: DemoState, visitId: string, focus: string): DemoState => {
+export const extendVisitUntil = (state: DemoState, visitId: string, expectedEndAt: string): DemoState => {
+  const visit = state.visits.find((item) => item.id === visitId);
+  if (!visit?.expectedEndAt || visit.status !== 'checked_in') throw new VisitLifecycleError('Only an active visit can be extended');
+  ensureTenant(state, visit);
+  if (!Number.isFinite(Date.parse(expectedEndAt)) || Date.parse(expectedEndAt) <= Date.parse(state.now)) {
+    throw new VisitLifecycleError('The new finish time must be in the future');
+  }
+  return replaceVisit(state, {
+    ...visit,
+    expectedDurationMinutes: Math.max(1, Math.round((Date.parse(expectedEndAt) - Date.parse(visit.checkedInAt!)) / 60_000)),
+    expectedEndAt,
+    autoCloseAt: addMinutes(expectedEndAt, 30),
+    lastActivityAt: state.now,
+    updatedAt: state.now
+  });
+};
+
+export const changeWorkoutFocuses = (state: DemoState, visitId: string, focuses: string[]): DemoState => {
   const visit = state.visits.find((item) => item.id === visitId);
   if (!visit || !['planned', 'delayed', 'checked_in'].includes(visit.status)) throw new VisitLifecycleError('Visit cannot be updated');
   ensureTenant(state, visit);
+  const normalized = normalizeWorkoutFocuses(focuses);
+  if (normalized.length === 0) throw new VisitLifecycleError('A workout focus is required for a workout visit');
+  const nextFocuses = splitWorkoutFocuses(normalized);
   return replaceVisit(state, {
     ...visit,
     intent: 'workout',
-    primaryWorkoutFocus: focus,
-    secondaryFocuses: [],
-    equipmentNeeds: Object.keys(focusEquipmentWeights[focus] ?? {}),
+    primaryWorkoutFocus: nextFocuses.primaryWorkoutFocus,
+    secondaryFocuses: nextFocuses.secondaryFocuses,
+    equipmentNeeds: [
+      ...getWorkoutFocusEquipmentKeys(normalized),
+      ...(visit.activity ? activityEquipment[visit.activity] ?? [] : [])
+    ],
     lastActivityAt: visit.status === 'checked_in' ? state.now : visit.lastActivityAt,
     updatedAt: state.now
   });
 };
+
+export const changeWorkoutFocus = (state: DemoState, visitId: string, focus: string): DemoState =>
+  changeWorkoutFocuses(state, visitId, [focus]);
 
 export const changeActivity = (state: DemoState, visitId: string, activity?: string): DemoState => {
   const visit = state.visits.find((item) => item.id === visitId);
@@ -256,7 +289,7 @@ export const changeActivity = (state: DemoState, visitId: string, activity?: str
     ...visit,
     activity,
     equipmentNeeds: [
-      ...(visit.intent === 'workout' && visit.primaryWorkoutFocus ? Object.keys(focusEquipmentWeights[visit.primaryWorkoutFocus] ?? {}) : []),
+      ...(visit.intent === 'workout' ? getWorkoutFocusEquipmentKeys(getVisitWorkoutFocuses(visit)) : []),
       ...(activity ? activityEquipment[activity] ?? [] : [])
     ],
     lastActivityAt: visit.status === 'checked_in' ? state.now : visit.lastActivityAt,

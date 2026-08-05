@@ -6,8 +6,10 @@ import { estimateWorkoutDuration } from './durationEstimator';
 import { calculateEquipmentDemand } from './equipmentDemand';
 import { forecastDemand, isFacilityOpen } from './forecasting';
 import { getLiveAggregate } from './liveAggregation';
-import { findBetterRecommendationWindow, getRecommendationGuidance, recommendFacilities } from './recommendation';
+import { compareRecommendations, findBetterRecommendationWindow, getRecommendationGuidance, recommendFacilities } from './recommendation';
 import { spontaneousCheckIn } from './visitLifecycle';
+import { getActiveVisitTiming, graceMinutesRemaining } from './visitReminders';
+import { getTimePlanningInsights } from './timePlanning';
 
 describe('deterministic demand engines', () => {
   it('matches the official NYU recreation activity catalog by facility', () => {
@@ -82,6 +84,27 @@ describe('deterministic demand engines', () => {
     expect(estimate.delayCauses.length).toBeGreaterThan(0);
   });
 
+  it('combines equipment demand for multi-muscle recommendations', () => {
+    const state = createDemoState('nyu');
+    const result = recommendFacilities(state, state.now, ['chest', 'legs'], undefined, 60)
+      .find((item) => item.eligible)!;
+    const equipment = result.equipmentDemand.map((item) => item.equipmentTypeId);
+    expect(equipment).toEqual(expect.arrayContaining(['cable', 'squat_rack']));
+  });
+
+  it('aggregates every selected muscle group without exposing individual visits', () => {
+    const initial = createDemoState('nyu');
+    const checkedIn = spontaneousCheckIn(initial, {
+      facilityId: 'nyu_palladium',
+      intent: 'workout',
+      workoutFocuses: ['chest', 'legs'],
+      expectedDurationMinutes: 60,
+      privacyLevel: 'anonymous_aggregate'
+    });
+    const aggregate = getLiveAggregate(checkedIn, 'nyu_palladium');
+    expect(aggregate.focusCounts.map((item) => item.key)).toEqual(expect.arrayContaining(['chest', 'legs']));
+  });
+
   it('never recommends a facility lacking an essential activity', () => {
     const state = createDemoState('nyu');
     const results = recommendFacilities(state, state.now, undefined, 'badminton', 60);
@@ -107,6 +130,15 @@ describe('deterministic demand engines', () => {
     expect(guidance.label).toContain('still busy');
   });
 
+  it('explains usable recommendations with concrete crowd and wait ranges', () => {
+    const state = createDemoState('nyu');
+    const recommendation = recommendFacilities(state, state.now, 'general_workout', undefined, 50)
+      .find((item) => item.eligible && !item.explanation.includes('demand may add'))!;
+    expect(recommendation.explanation).toContain('predicted to be');
+    expect(recommendation.explanation).toMatch(/\d+–\d+ minutes of estimated waiting/);
+    expect(recommendation.explanation).not.toContain('workable');
+  });
+
   it('finds a meaningfully better later window with an explainable time-saving range', () => {
     const state = createDemoState('nyu');
     const current = recommendFacilities(state, state.now, 'back', undefined, 50).find((item) => item.eligible)!;
@@ -114,6 +146,44 @@ describe('deterministic demand engines', () => {
     expect(later).toBeDefined();
     expect(later!.recommendation.score).toBeGreaterThanOrEqual(current.score + 8);
     expect(later!.minutesSavedRange[1]).toBeGreaterThanOrEqual(later!.minutesSavedRange[0]);
+  });
+
+  it('suggests explainable times from historical patterns and reports equipment outages', () => {
+    const state = createDemoState('nyu');
+    const insights = getTimePlanningInsights(state, state.now, 'back', undefined, 50, ['cable']);
+    expect(insights.suggestions.length).toBeGreaterThan(0);
+    expect(insights.suggestions.length).toBeLessThanOrEqual(3);
+    expect(insights.sourceExplanation).toContain('prior-day patterns');
+    expect(insights.sourceExplanation).toContain('equipment outages');
+    expect(insights.disruptions.some((item) => item.includes('cable stations') && item.includes('out of service'))).toBe(true);
+  });
+
+  it('explains why a busier gym can rank above a calmer alternative', () => {
+    const state = createDemoState('nyu');
+    const recommendations = recommendFacilities(state, state.now, 'back', undefined, 50);
+    const recommended = recommendations.find((item) => item.eligible)!;
+    const calmer = recommendations.find((item) => item.eligible && item.forecast.crowdLevel === 'moderate')!;
+    const comparison = compareRecommendations(recommended, calmer);
+    expect(comparison.summary).toContain('less busy overall');
+    expect(comparison.factors.join(' ')).toContain('Workout-specific wait');
+    expect(comparison.factors.join(' ')).toContain('Travel');
+  });
+
+  it('includes every active visit in anonymous CampusFit aggregates', () => {
+    const state = createDemoState('nyu');
+    const before = getLiveAggregate(state, 'nyu_palladium');
+    const checkedIn = spontaneousCheckIn(state, { facilityId: 'nyu_palladium', intent: 'workout', primaryWorkoutFocus: 'back', expectedDurationMinutes: 60, privacyLevel: 'private' });
+    expect(getLiveAggregate(checkedIn, 'nyu_palladium').campusFitCheckIns).toBe(before.campusFitCheckIns + 1);
+    expect(checkedIn.visits.at(-1)?.privacyLevel).toBe('anonymous_aggregate');
+  });
+
+  it('keeps an overdue visit active for a 30-minute reminder grace period', () => {
+    const checkedIn = spontaneousCheckIn(createDemoState('nyu'), { facilityId: 'nyu_palladium', intent: 'workout', primaryWorkoutFocus: 'back', expectedDurationMinutes: 60, privacyLevel: 'anonymous_aggregate' });
+    const visit = checkedIn.visits.at(-1)!;
+    const fiveMinutesLate = addMinutes(visit.expectedEndAt!, 5);
+    expect(getActiveVisitTiming(visit, fiveMinutesLate)).toBe('grace_period');
+    expect(graceMinutesRemaining(visit, fiveMinutesLate)).toBe(25);
+    expect(getActiveVisitTiming(visit, visit.autoCloseAt!)).toBe('auto_close_due');
   });
 
   it('excludes temporary facility closures from recommendations', () => {

@@ -1,5 +1,6 @@
 import type { DemoState, DemandLevel, EquipmentDemand } from '../domain/types';
-import { activityEquipment, focusEquipmentWeights } from '../data/catalog';
+import { activityEquipment } from '../data/catalog';
+import { getVisitWorkoutFocuses, getWorkoutFocusEquipmentKeys, getWorkoutFocusEquipmentWeight, type WorkoutFocusInput } from './workoutFocus';
 
 const demandLevel = (ratio: number): DemandLevel => {
   if (ratio < 0.6) return 'low';
@@ -18,7 +19,7 @@ export const calculateEquipmentDemand = (
   state: DemoState,
   facilityId: string,
   at = state.now,
-  selectedFocus?: string,
+  selectedFocus?: WorkoutFocusInput,
   selectedActivity?: string
 ): EquipmentDemand[] => {
   const facility = state.facilities.find((item) => item.id === facilityId);
@@ -30,7 +31,7 @@ export const calculateEquipmentDemand = (
     return false;
   });
   const selectedKeys = new Set([
-    ...Object.keys(focusEquipmentWeights[selectedFocus ?? ''] ?? {}),
+    ...getWorkoutFocusEquipmentKeys(selectedFocus),
     ...(selectedActivity ? activityEquipment[selectedActivity] ?? [] : [])
   ]);
   const historicalPressure = facility.baselineByHour[new Date(at).getHours()] ?? 0.35;
@@ -39,7 +40,9 @@ export const calculateEquipmentDemand = (
     .map((inventory) => {
       const equipment = state.equipmentTypes.find((item) => item.id === inventory.equipmentTypeId)!;
       const relevantDemand = visits.reduce((sum, visit) => {
-        const focusWeight = visit.intent === 'workout' && visit.primaryWorkoutFocus ? focusEquipmentWeights[visit.primaryWorkoutFocus]?.[equipment.key] ?? 0 : 0;
+        const focusWeight = visit.intent === 'workout'
+          ? getWorkoutFocusEquipmentWeight(getVisitWorkoutFocuses(visit), equipment.key)
+          : 0;
         const activityWeight = visit.activity && activityEquipment[visit.activity]?.includes(equipment.key) ? 1.25 : 0;
         return sum + Math.max(focusWeight, activityWeight) * (visit.status === 'checked_in' ? 1 : 0.72);
       }, 0);
