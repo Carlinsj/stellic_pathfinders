@@ -8,12 +8,22 @@ async function pointerTap(page: Page, locator: Locator) {
 }
 
 test('public landing explains sources and privacy', async ({ page }) => {
+  const consoleErrors: string[] = [];
+  page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });
   await page.goto('/');
   await expect(page.locator('.skip-link')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: /Know where and when/i })).toBeVisible();
   await expect(page.getByText(/All demonstration data is synthetic/i)).toBeVisible();
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'http://127.0.0.1:5173/');
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', 'http://127.0.0.1:5173/social-card.png');
+  expect(await page.locator('script[type="application/ld+json"]').textContent()).toContain('WebApplication');
   await page.locator('#privacy').scrollIntoViewIfNeeded();
   await expect(page.getByText(/Anonymous by design/i)).toBeVisible();
+  await page.getByRole('link', { name: 'Privacy policy' }).click();
+  await expect(page).toHaveURL(/\/privacy$/);
+  await expect(page.getByRole('heading', { name: /Privacy in the CampusFit prototype/i })).toBeVisible();
+  await expect(page.getByText(/does not request GPS access/i)).toBeVisible();
+  expect(consoleErrors).toEqual([]);
 });
 
 test('complete NYU planned visit with delay, check-in, and check-out', async ({ page }) => {

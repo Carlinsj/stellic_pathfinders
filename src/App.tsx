@@ -12,11 +12,13 @@ import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { PlanPage } from './pages/PlanPage';
+import { PrivacyPage } from './pages/PrivacyPage';
 import { StaffPage } from './pages/StaffPage';
 
 export default function App() {
   return <Routes>
     <Route path="/" element={<LandingPage />} />
+    <Route path="/privacy" element={<PrivacyPage />} />
     <Route path="/nyu/login" element={<LoginPage audience="student" />} />
     <Route path="/nyu/staff-login" element={<LoginPage audience="staff" />} />
     <Route path="/nyu" element={<TenantGuard><AuthenticatedGuard><AppShell /></AuthenticatedGuard></TenantGuard>}>
