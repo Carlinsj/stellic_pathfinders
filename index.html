@@ -5,7 +5,45 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#57068c" />
     <meta name="description" content="CampusFit helps students choose where and when to work out on campus." />
+    <link rel="canonical" data-path="/" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="CampusFit" />
+    <meta property="og:title" content="CampusFit — plan a better workout" />
+    <meta property="og:description" content="Choose where and when to work out on campus with transparent, workout-specific demand guidance." />
+    <meta property="og:url" content="/" />
+    <meta property="og:image" content="/social-card.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="CampusFit workout planning preview" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="CampusFit — plan a better workout" />
+    <meta name="twitter:description" content="Choose where and when to work out on campus with transparent, workout-specific demand guidance." />
+    <meta name="twitter:image" content="/social-card.png" />
+    <script>
+      // Keep URLs portable locally and on any deployment host while exposing absolute URLs in the live DOM.
+      for (const selector of ['link[rel="canonical"]', 'meta[property="og:url"]', 'meta[property="og:image"]', 'meta[name="twitter:image"]']) {
+        const element = document.querySelector(selector);
+        const attribute = element?.tagName === 'LINK' ? 'href' : 'content';
+        const value = element?.getAttribute(attribute) ?? element?.getAttribute('data-path');
+        if (element && value) element.setAttribute(attribute, new URL(value, window.location.origin).href);
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "CampusFit",
+        "description": "A competition prototype that helps students choose where and when to work out on campus.",
+        "applicationCategory": "LifestyleApplication",
+        "operatingSystem": "Any",
+        "isAccessibleForFree": true,
+        "audience": {
+          "@type": "EducationalAudience",
+          "educationalRole": "student"
+        }
+      }
+    </script>
     <title>CampusFit — plan a better workout</title>
   </head>
   <body>

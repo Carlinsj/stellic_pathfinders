@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
+  <title id="title">CampusFit</title>
+  <desc id="description">Plan a better campus workout with transparent demand guidance.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#17261e" />
+      <stop offset="1" stop-color="#294936" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#background)" />
+  <circle cx="1030" cy="120" r="280" fill="none" stroke="#ffffff" stroke-opacity=".08" stroke-width="2" />
+  <circle cx="1030" cy="120" r="210" fill="none" stroke="#f0c06a" stroke-opacity=".18" stroke-width="2" />
+  <g transform="translate(88 82)" fill="#f6f2e9">
+    <rect x="0" y="8" width="18" height="72" rx="7" />
+    <rect x="104" y="8" width="18" height="72" rx="7" />
+    <rect x="20" y="31" width="82" height="25" rx="7" />
+    <rect x="-16" y="21" width="14" height="47" rx="7" />
+    <rect x="124" y="21" width="14" height="47" rx="7" />
+  </g>
+  <text x="252" y="151" fill="#f6f2e9" font-family="Arial, Helvetica, sans-serif" font-size="66" font-weight="800" letter-spacing="-4">Campus<tspan fill="#f0c06a">Fit</tspan></text>
+  <text x="88" y="300" fill="#f6f2e9" font-family="Georgia, serif" font-size="78">Plan a better</text>
+  <text x="88" y="388" fill="#f0c06a" font-family="Georgia, serif" font-size="78" font-style="italic">campus workout.</text>
+  <text x="92" y="478" fill="#c3cec6" font-family="Arial, Helvetica, sans-serif" font-size="30">Transparent, workout-specific demand guidance</text>
+  <rect x="92" y="525" width="415" height="3" rx="2" fill="#f0c06a" />
+  <text x="92" y="570" fill="#9eafa3" font-family="Arial, Helvetica, sans-serif" font-size="22" letter-spacing="3">NYU COMPETITION PROTOTYPE</text>
+</svg>

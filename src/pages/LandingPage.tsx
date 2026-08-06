@@ -4,7 +4,7 @@ import { Brand } from '../components/Brand';
 
 export function LandingPage() {
   return <div className="landing-page">
-    <header className="landing-header"><Brand /><nav aria-label="Landing navigation"><a href="#how-it-works">How it works</a><a href="#privacy">Privacy</a><Link to="/nyu/staff-login">Staff access</Link><Link className="button button--secondary button--small" to="/nyu/login">Open student demo</Link></nav></header>
+    <header className="landing-header"><Brand /><nav aria-label="Landing navigation"><a href="#how-it-works">How it works</a><a href="#privacy">Privacy approach</a><Link to="/nyu/staff-login">Staff access</Link><Link className="button button--secondary button--small" to="/nyu/login">Open student demo</Link></nav></header>
     <main id="main-content">
       <section className="landing-hero">
         <div className="hero-copy"><span className="kicker"><Sparkles size={14} />Built for the rhythm of NYU</span><h1>Know where and when to <em>work out.</em></h1><p>CampusFit turns NYU facility resources, live participation, student plans, and historical patterns into workout-specific guidance—before you leave for the gym.</p><div className="hero-actions"><Link className="button button--primary button--large" to="/nyu/login">Explore NYU CampusFit <ArrowRight size={18} /></Link></div><small className="synthetic-note"><span /> NYU competition prototype · All demonstration data is synthetic</small></div>
@@ -24,6 +24,6 @@ export function LandingPage() {
       <section id="privacy" className="privacy-section"><div><span className="kicker"><ShieldCheck size={14} />Privacy by default</span><h2>Useful together.<br /><em>Anonymous by design.</em></h2><p>CampusFit shares server-calculated patterns, never public attendance lists. Small groups are suppressed, personal history stays personal, and continuous location tracking is never required.</p><ul><li><ShieldCheck /> Minimum-count privacy thresholds</li><li><UsersRound /> Anonymous aggregates by default</li><li><GraduationCap /> University-isolated tenant data</li></ul></div><div className="privacy-card"><span className="privacy-shield"><ShieldCheck size={35} /></span><small>LIVE AT PALLADIUM</small><strong>38</strong><p>CampusFit users checked in</p><hr /><div><span>Back workout</span><b>11</b></div><div><span>Squash</span><b>Low activity</b></div><footer>This is voluntary CampusFit participation—not official total occupancy.</footer></div></section>
       <section className="cta-section"><div><span className="kicker">NYU competition demo</span><h2>Make your next workout<br /><em>a better decision.</em></h2></div><div><Link className="button button--primary button--large" to="/nyu/login">Start NYU scenario <ArrowRight size={18} /></Link><Link className="text-link" to="/nyu/staff-login">Open the NYU staff portal</Link></div></section>
     </main>
-    <footer className="landing-footer"><Brand inverted /><p>CampusFit is a demonstration platform using synthetic data. No university authentication or official occupancy integration is connected.</p></footer>
+    <footer className="landing-footer"><Brand inverted /><div><p>CampusFit is a demonstration platform using synthetic data. No university authentication or official occupancy integration is connected.</p><Link to="/privacy">Privacy policy</Link></div></footer>
   </div>;
 }
