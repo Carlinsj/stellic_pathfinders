@@ -47,7 +47,7 @@ export function PlanPage() {
   const arrivalAt = arrivalForTime(time);
   const recommendations = useMemo(() => recommendFacilities(state, arrivalAt, visitIntent === 'workout' ? selectedFocuses : undefined, activity || undefined, duration, selectedEquipment), [state, arrivalAt, visitIntent, selectedFocuses, activity, duration, selectedEquipment]);
   const selectedRecommendation = recommendations.find((item) => item.facility.id === selectedFacility) ?? recommendations[0]!;
-  const best = recommendations.find((item) => item.eligible)!;
+  const best = recommendations.find((item) => item.eligible) ?? recommendations[0]!;
   const bestGuidance = getRecommendationGuidance(best);
   const bestFitLabel = bestGuidance.verdict === 'strong_fit' ? 'Strong fit' : 'Best available';
   const demand = selectedRecommendation.equipmentDemand.slice(0, 4);
