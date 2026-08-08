@@ -14,6 +14,8 @@ npm run dev
 
 The launcher installs dependencies when they are missing and starts Vite, normally at `http://localhost:5173`. The local demo needs no Supabase project or paid service.
 
+The frontend's required backend routes are listed in [`endpoints.yml`](endpoints.yml).
+
 Quality checks:
 
 ```bash
