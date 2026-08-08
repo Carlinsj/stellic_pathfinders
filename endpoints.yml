@@ -1,0 +1,72 @@
+endpoints:
+  - method: GET
+    path: /api/v1/health
+    description: Check whether the backend is running.
+
+  - method: GET
+    path: /api/v1/tenants/{tenant}/demo-accounts
+    description: List the temporary demo users shown by the frontend.
+
+  - method: POST
+    path: /api/v1/auth/demo/session
+    description: Sign in as a demo user; replace this with real university login.
+
+  - method: DELETE
+    path: /api/v1/auth/session
+    description: Sign out the current user.
+
+  - method: GET
+    path: /api/v1/tenants/{tenant}/bootstrap
+    description: Load the current user and initial student-safe app data.
+
+  - method: GET
+    path: /api/v1/tenants/{tenant}/facilities
+    description: List facilities with their hours, resources, and crowd estimates.
+
+  - method: GET
+    path: /api/v1/tenants/{tenant}/facilities/{facilityId}
+    description: Get details for one facility.
+
+  - method: GET
+    path: /api/v1/tenants/{tenant}/recommendations
+    description: Recommend facilities and times for a workout or activity.
+
+  - method: GET
+    path: /api/v1/tenants/{tenant}/me/visits
+    description: List only the signed-in student's visits.
+
+  - method: POST
+    path: /api/v1/tenants/{tenant}/me/visits
+    description: Plan a visit or check in now.
+
+  - method: PATCH
+    path: /api/v1/tenants/{tenant}/me/visits/{visitId}
+    description: Delay, check in, complete, or cancel one of the student's visits.
+
+  - method: DELETE
+    path: /api/v1/tenants/{tenant}/me/visits/{visitId}
+    description: Delete one of the student's visits and its history.
+
+  - method: PATCH
+    path: /api/v1/tenants/{tenant}/staff/facilities/{facilityId}/equipment/{equipmentTypeId}
+    description: Mark equipment unavailable or restore it.
+
+  - method: PATCH
+    path: /api/v1/tenants/{tenant}/staff/facilities/{facilityId}/hours
+    description: Change today's closing time for a facility.
+
+  - method: PUT
+    path: /api/v1/tenants/{tenant}/staff/facilities/{facilityId}/closure
+    description: Temporarily close a facility.
+
+  - method: DELETE
+    path: /api/v1/tenants/{tenant}/staff/facilities/{facilityId}/closure
+    description: Remove a temporary facility closure.
+
+  - method: PATCH
+    path: /api/v1/tenants/{tenant}/admin/settings
+    description: Update university branding, privacy, and visit settings.
+
+  - method: POST
+    path: /api/v1/tenants/{tenant}/demo/reset
+    description: Reset the temporary demo data; do not include this in production.
