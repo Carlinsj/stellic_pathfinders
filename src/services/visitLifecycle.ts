@@ -183,17 +183,25 @@ export const checkInPlannedVisit = (state: DemoState, visitId: string): DemoStat
   }, result.entry);
 };
 
-export const delayVisit = (state: DemoState, visitId: string, minutes: number): DemoState => {
+export const rescheduleVisit = (state: DemoState, visitId: string, plannedArrivalAt: string): DemoState => {
   const visit = state.visits.find((item) => item.id === visitId);
   if (!visit?.plannedArrivalAt) throw new VisitLifecycleError('Planned visit not found');
   ensureTenant(state, visit);
-  if (visit.status !== 'planned' && visit.status !== 'delayed') throw new VisitLifecycleError('Only an upcoming visit can be delayed');
+  if (visit.status !== 'planned' && visit.status !== 'delayed') throw new VisitLifecycleError('Only an upcoming visit can be rescheduled');
+  if (!Number.isFinite(Date.parse(plannedArrivalAt))) throw new VisitLifecycleError('Choose a valid arrival time');
+  if (Date.parse(plannedArrivalAt) <= Date.parse(state.now)) throw new VisitLifecycleError('The new arrival time must be in the future');
   const previousTime = visit.plannedArrivalAt;
-  const newTime = addMinutes(previousTime, minutes);
-  const entry = visit.status === 'planned'
-    ? statusEntry(visit, 'delayed', `Arrival moved from ${previousTime} to ${newTime}`, state.now)
-    : undefined;
-  return replaceVisit(state, { ...visit, status: 'delayed', plannedArrivalAt: newTime, updatedAt: state.now }, entry);
+  const entry = {
+    ...statusEntry(visit, 'delayed', `Arrival rescheduled from ${previousTime} to ${plannedArrivalAt}`, state.now),
+    id: `history_${visit.id}_${state.now}_reschedule_${Date.parse(plannedArrivalAt)}`
+  };
+  return replaceVisit(state, { ...visit, status: 'delayed', plannedArrivalAt, updatedAt: state.now }, entry);
+};
+
+export const delayVisit = (state: DemoState, visitId: string, minutes: number): DemoState => {
+  const visit = state.visits.find((item) => item.id === visitId);
+  if (!visit?.plannedArrivalAt) throw new VisitLifecycleError('Planned visit not found');
+  return rescheduleVisit(state, visitId, addMinutes(visit.plannedArrivalAt, minutes));
 };
 
 export const changeFacility = (state: DemoState, visitId: string, facilityId: string): DemoState => {

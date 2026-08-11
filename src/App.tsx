@@ -1,4 +1,5 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AppShell } from './components/AppShell';
 import { AuthenticatedGuard, RoleGuard, TenantGuard } from './data/TenantContext';
 import { ActivityPage } from './pages/ActivityPage';
@@ -15,8 +16,28 @@ import { PlanPage } from './pages/PlanPage';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { StaffPage } from './pages/StaffPage';
 
+const titleForPath = (pathname: string): string => {
+  if (pathname === '/') return 'CampusFit — plan a better workout';
+  if (pathname === '/privacy') return 'Privacy · CampusFit';
+  if (pathname.endsWith('/staff-login')) return 'Staff demo login · CampusFit';
+  if (pathname.endsWith('/login')) return 'Student demo login · CampusFit';
+  if (/\/facilities\/[^/]+$/.test(pathname)) return 'Facility details · CampusFit';
+  if (pathname.endsWith('/facilities')) return 'Facilities · CampusFit';
+  if (pathname.endsWith('/home')) return 'Student dashboard · CampusFit';
+  if (pathname.endsWith('/plan')) return 'Plan a visit · CampusFit';
+  if (pathname.endsWith('/activity')) return 'Activity demand · CampusFit';
+  if (pathname.endsWith('/history')) return 'Visit history · CampusFit';
+  if (pathname.endsWith('/staff')) return 'Facility operations · CampusFit';
+  if (pathname.endsWith('/admin')) return 'University settings · CampusFit';
+  if (pathname.endsWith('/demo')) return 'Demo controls · CampusFit';
+  return 'Page not found · CampusFit';
+};
+
 export default function App() {
-  return <Routes>
+  const location = useLocation();
+  useEffect(() => { document.title = titleForPath(location.pathname); }, [location.pathname]);
+
+  return <><a className="skip-link" href="#main-content">Skip to main content</a><Routes>
     <Route path="/" element={<LandingPage />} />
     <Route path="/privacy" element={<PrivacyPage />} />
     <Route path="/nyu/login" element={<LoginPage audience="student" />} />
@@ -34,5 +55,5 @@ export default function App() {
       <Route path="demo" element={<RoleGuard area="demo"><DemoControlsPage /></RoleGuard>} />
     </Route>
     <Route path="*" element={<NotFoundPage />} />
-  </Routes>;
+  </Routes></>;
 }

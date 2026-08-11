@@ -28,6 +28,32 @@ endpoints:
     description: Get details for one facility.
 
   - method: GET
+    path: /api/v1/tenants/{tenant}/facilities/{facilityId}/participation
+    description: Return a student-safe aggregate of voluntary CampusFit check-ins and the 30-minute planning window beginning at the optional `at` timestamp. Never treat this response as total or official occupancy.
+    query:
+      at:
+        type: string
+        format: date-time
+        required: false
+        description: Arrival-window start; defaults to the current time.
+    response:
+      universityId: string
+      facilityId: string
+      intervalStart: date-time
+      intervalEnd: date-time
+      campusFitCheckIns: integer
+      plannedCheckIns: integer
+      walkInCheckIns: integer
+      scheduledForWindow: integer
+      scheduledNotCheckedIn: integer
+      typicalVisitorRange: [integer, integer]
+      confidence: low | medium | high
+      updatedAt: date-time
+      sourceExplanation: string
+      officialOccupancyConnected: false
+    privacy: Aggregate-only response. It must not contain visit IDs, user IDs, names, or another student's raw active visit.
+
+  - method: GET
     path: /api/v1/tenants/{tenant}/recommendations
     description: Recommend facilities and times for a workout or activity.
 
@@ -37,11 +63,24 @@ endpoints:
 
   - method: POST
     path: /api/v1/tenants/{tenant}/me/visits
-    description: Plan a visit or check in now.
+    description: Plan a visit or check in now. Return the signed-in student's visit plus the refreshed aggregate participation tracker for the affected facility and arrival window.
 
   - method: PATCH
     path: /api/v1/tenants/{tenant}/me/visits/{visitId}
-    description: Delay, check in, complete, or cancel one of the student's visits.
+    description: Reschedule, check in, complete, extend, or cancel one of the signed-in student's visits. Rescheduling accepts an exact future arrival time and is allowed only while the visit is planned or delayed. Return the student's updated visit plus refreshed aggregate participation trackers for both the previous and new arrival windows when timing changes.
+    request:
+      action: reschedule | check_in | complete | extend | cancel
+      plannedArrivalAt:
+        type: string
+        format: date-time
+        requiredWhen: action is reschedule
+        description: Exact future arrival time for a planned or delayed visit.
+      expectedEndAt:
+        type: string
+        format: date-time
+        requiredWhen: action is extend
+        description: Exact future finish time for an active visit.
+    authorization: The visit must belong to the signed-in user and match the tenant in the path. Active or closed visits cannot be rescheduled or cancelled.
 
   - method: DELETE
     path: /api/v1/tenants/{tenant}/me/visits/{visitId}
@@ -49,7 +88,18 @@ endpoints:
 
   - method: PATCH
     path: /api/v1/tenants/{tenant}/staff/facilities/{facilityId}/equipment/{equipmentTypeId}
-    description: Mark equipment unavailable or restore it.
+    description: Mark a selected number of operational equipment units unavailable or restore a selected number of out-of-service units.
+    request:
+      action: mark_unavailable | restore
+      units:
+        type: integer
+        minimum: 1
+        description: Number of units affected. For mark_unavailable this cannot exceed the current operational quantity; for restore it cannot exceed the current out-of-service quantity.
+      reason:
+        type: string
+        requiredWhen: action is mark_unavailable
+        description: Staff-provided outage or maintenance reason.
+    authorization: Requires an authorized staff session for the tenant and a facility/equipment inventory owned by that tenant.
 
   - method: PATCH
     path: /api/v1/tenants/{tenant}/staff/facilities/{facilityId}/hours

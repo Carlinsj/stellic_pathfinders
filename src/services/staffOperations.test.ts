@@ -34,6 +34,18 @@ describe('staff operations', () => {
     expect(available.outageReason).toBeUndefined();
   });
 
+  it('marks only the selected number of operational units unavailable', () => {
+    const state = staffState();
+    const before = state.facilityEquipment.find((item) => item.facilityId === 'nyu_palladium' && item.equipmentTypeId === 'cable')!;
+    const reduced = markEquipmentUnavailable(state, 'nyu_palladium', 'cable', 3);
+    const after = reduced.facilityEquipment.find((item) => item.facilityId === 'nyu_palladium' && item.equipmentTypeId === 'cable')!;
+    expect(after.operationalQuantity).toBe(before.operationalQuantity - 3);
+    expect(() => markEquipmentUnavailable(state, 'nyu_palladium', 'cable', before.operationalQuantity + 1))
+      .toThrow('Cannot mark more units unavailable than are operational');
+    expect(() => markEquipmentUnavailable(state, 'nyu_palladium', 'cable', 0))
+      .toThrow('Outage quantity must be a positive whole number');
+  });
+
   it('rejects restoring more units than are out of service', () => {
     const state = staffState();
     expect(() => restoreEquipment(state, 'nyu_palladium', 'cable', 3))

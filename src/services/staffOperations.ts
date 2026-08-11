@@ -35,12 +35,21 @@ export const markEquipmentUnavailable = (
 ): DemoState => {
   requireStaffAccess(state);
   requireOwnedInventory(state, facilityId, equipmentTypeId);
-  const quantity = Math.max(1, Math.floor(units));
+  if (!Number.isInteger(units) || units < 1) {
+    throw new Error('Outage quantity must be a positive whole number');
+  }
+  const inventory = state.facilityEquipment.find((item) =>
+    item.universityId === state.university.id &&
+    item.facilityId === facilityId &&
+    item.equipmentTypeId === equipmentTypeId)!;
+  if (units > inventory.operationalQuantity) {
+    throw new Error('Cannot mark more units unavailable than are operational');
+  }
   return {
     ...state,
     facilityEquipment: state.facilityEquipment.map((item) =>
       item.universityId === state.university.id && item.facilityId === facilityId && item.equipmentTypeId === equipmentTypeId
-        ? { ...item, operationalQuantity: Math.max(0, item.operationalQuantity - quantity), outageReason: reason }
+        ? { ...item, operationalQuantity: item.operationalQuantity - units, outageReason: reason }
         : item)
   };
 };

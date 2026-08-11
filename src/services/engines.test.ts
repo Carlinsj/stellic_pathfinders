@@ -4,7 +4,7 @@ import { addMinutes } from '../lib/format';
 import { assessVisitMutation, reportTrustWeight } from './abuseProtection';
 import { estimateWorkoutDuration } from './durationEstimator';
 import { calculateEquipmentDemand } from './equipmentDemand';
-import { forecastDemand, isFacilityOpen } from './forecasting';
+import { approximateExpectedVisitors, forecastDemand, isFacilityOpen } from './forecasting';
 import { getLiveAggregate } from './liveAggregation';
 import { compareRecommendations, findBetterRecommendationWindow, getRecommendationGuidance, recommendFacilities } from './recommendation';
 import { spontaneousCheckIn } from './visitLifecycle';
@@ -55,6 +55,10 @@ describe('deterministic demand engines', () => {
     expect(result.expectedRange[1]).toBeGreaterThan(result.expectedRange[0]);
     expect(result.sourceExplanation).toContain('No official occupancy feed');
     expect(result.crowdLevel).not.toBe('unknown');
+  });
+
+  it('presents a broad forecast as a rounded approximate count', () => {
+    expect(approximateExpectedVisitors({ expectedRange: [413, 505] })).toBe(460);
   });
 
   it('excludes expired plans from planned demand', () => {

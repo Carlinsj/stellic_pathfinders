@@ -1,4 +1,4 @@
-import type { LiveAggregate, TenantSlug, UserProfile } from '../domain/types';
+import type { FacilityParticipationTracker, LiveAggregate, TenantSlug, UserProfile } from '../domain/types';
 
 export interface AuthenticationAdapter {
   signInDemo(tenant: TenantSlug, userId: string): Promise<UserProfile>;
@@ -15,6 +15,7 @@ export interface NotificationAdapter {
 export interface OccupancySourceAdapter {
   readonly sourceType: 'student_check_ins' | 'recreation_system' | 'entrance_counter' | 'staff_update' | 'synthetic_demo';
   getAggregate(facilityId: string): Promise<LiveAggregate | null>;
+  getParticipationTracker(facilityId: string, at?: string): Promise<FacilityParticipationTracker | null>;
   isAuthoritative(): boolean;
 }
 

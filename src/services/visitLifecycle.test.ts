@@ -6,7 +6,7 @@ import { getRecordedVisitDurationMinutes } from './visitDuration';
 import {
   VisitLifecycleError, autoCloseStaleVisits, cancelVisit, canTransition, changeActivity, changeFacility,
   changeWorkoutFocus, changeWorkoutFocuses, checkInPlannedVisit, checkOutVisit, createPlan, delayVisit, expirePastPlans,
-  extendVisit, extendVisitUntil, spontaneousCheckIn
+  extendVisit, extendVisitUntil, rescheduleVisit, spontaneousCheckIn
 } from './visitLifecycle';
 
 const draft = { facilityId: 'nyu_palladium', intent: 'workout' as const, primaryWorkoutFocus: 'back', secondaryFocuses: ['biceps'], expectedDurationMinutes: 50, privacyLevel: 'anonymous_aggregate' as const };
@@ -30,6 +30,31 @@ describe('visit state machine', () => {
     expect(delayed.visits.at(-1)?.status).toBe('delayed');
     expect(Date.parse(delayed.visits.at(-1)!.plannedArrivalAt!) - Date.parse(visit.plannedArrivalAt!)).toBe(20 * 60_000);
     expect(delayed.history.at(-1)?.newStatus).toBe('delayed');
+  });
+
+  it('reschedules an upcoming visit to an exact future time and records each change', () => {
+    const initial = createDemoState('nyu');
+    const planned = createPlan(initial, { ...draft, plannedArrivalAt: addMinutes(initial.now, 90) });
+    const visit = planned.visits.at(-1)!;
+    const earlierTime = addMinutes(initial.now, 45);
+    const rescheduled = rescheduleVisit(planned, visit.id, earlierTime);
+    expect(rescheduled.visits.at(-1)).toMatchObject({ status: 'delayed', plannedArrivalAt: earlierTime });
+    expect(rescheduled.history.at(-1)?.reason).toContain('Arrival rescheduled');
+
+    const laterTime = addMinutes(initial.now, 120);
+    const rescheduledAgain = rescheduleVisit(rescheduled, visit.id, laterTime);
+    expect(rescheduledAgain.visits.at(-1)?.plannedArrivalAt).toBe(laterTime);
+    expect(rescheduledAgain.history).toHaveLength(rescheduled.history.length + 1);
+    expect(new Set(rescheduledAgain.history.map((entry) => entry.id)).size).toBe(rescheduledAgain.history.length);
+  });
+
+  it('rejects rescheduling to the past or after a visit has started', () => {
+    const initial = createDemoState('nyu');
+    const planned = createPlan(initial, { ...draft, plannedArrivalAt: addMinutes(initial.now, 60) });
+    const visitId = planned.visits.at(-1)!.id;
+    expect(() => rescheduleVisit(planned, visitId, addMinutes(initial.now, -1))).toThrow('must be in the future');
+    const checkedIn = checkInPlannedVisit(planned, visitId);
+    expect(() => rescheduleVisit(checkedIn, visitId, addMinutes(initial.now, 120))).toThrow('Only an upcoming visit');
   });
 
   it('stores multiple muscle groups and combines their equipment needs', () => {

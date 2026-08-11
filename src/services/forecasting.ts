@@ -34,6 +34,12 @@ const overlaps = (start: string | undefined, durationMinutes: number, intervalSt
   return visitStart < Date.parse(intervalEnd) && visitEnd > Date.parse(intervalStart);
 };
 
+export const approximateExpectedVisitors = (forecast: Pick<Forecast, 'expectedRange'>): number => {
+  const midpoint = (forecast.expectedRange[0] + forecast.expectedRange[1]) / 2;
+  const roundingStep = midpoint >= 100 ? 10 : 5;
+  return Math.round(midpoint / roundingStep) * roundingStep;
+};
+
 export const forecastDemand = (state: DemoState, facilityId: string, at = state.now): Forecast => {
   const facility = state.facilities.find((item) => item.id === facilityId);
   if (!facility) throw new Error('Facility not found in tenant');
