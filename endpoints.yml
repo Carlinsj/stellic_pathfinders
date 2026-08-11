@@ -1,35 +1,88 @@
+contract:
+  version: 2026-08-11
+  status: required-production-contract
+  basePath: /api/v1
+  notes:
+    - The current competition build uses deterministic in-memory repositories; these routes describe the tenant-scoped backend contract required to replace them.
+    - Student responses must never expose another student's raw visit, identity, or attendance history.
+    - CampusFit check-ins are voluntary product participation and must never be labelled total or official occupancy.
+    - All tenant-owned records and responses carry universityId, while the tenant path is validated against the authenticated profile.
+    - Forecast responses preserve ranges, confidence, freshness, drivers, and source explanations.
+
 endpoints:
   - method: GET
     path: /api/v1/health
-    description: Check whether the backend is running.
+    description: Check whether the API and its required persistence layer are available.
+    authorization: Public. Return no tenant or user data.
 
   - method: GET
     path: /api/v1/tenants/{tenant}/demo-accounts
-    description: List the temporary demo users shown by the frontend.
+    description: List temporary tenant-owned demo accounts shown by the competition frontend.
+    response:
+      accounts: DemoAccount[]
+    authorization: Demo environments only. Do not expose this route in production university deployments.
 
   - method: POST
     path: /api/v1/auth/demo/session
-    description: Sign in as a demo user; replace this with real university login.
+    description: Start a temporary demo session for an eligible account.
+    request:
+      tenant: string
+      userId: string
+    response:
+      currentUser: UserProfile
+    authorization: Demo environments only; reject accounts belonging to another tenant.
 
   - method: DELETE
     path: /api/v1/auth/session
-    description: Sign out the current user.
+    description: End the authenticated session and revoke its server-side session state.
+    authorization: Authenticated user.
 
   - method: GET
     path: /api/v1/tenants/{tenant}/bootstrap
-    description: Load the current user and initial student-safe app data.
+    description: Load the authenticated user, tenant configuration, role-appropriate catalogue data, private self-owned visits, and student-safe aggregates needed for initial rendering.
+    response:
+      university: University
+      currentUser: UserProfile
+      facilities: Facility[]
+      activities: Activity[]
+      workoutFocuses: WorkoutFocus[]
+      equipmentTypes: EquipmentType[]
+      ownVisits: Visit[]
+      notifications: Notification[]
+    authorization: Authenticated tenant member. Student payloads contain only the signed-in student's visits and aggregate facility data; staff-only operational fields are role-gated.
 
   - method: GET
     path: /api/v1/tenants/{tenant}/facilities
-    description: List facilities with their hours, resources, and crowd estimates.
+    description: List tenant facilities with hours, activities, student-safe resource availability, and forecast summaries.
+    query:
+      at:
+        type: string
+        format: date-time
+        required: false
+      intent:
+        type: string
+        enum: [workout, activity]
+        required: false
+    response:
+      facilities: FacilitySummary[]
+    authorization: Authenticated tenant member. Do not include raw visit rows or staff-only audit data.
 
   - method: GET
     path: /api/v1/tenants/{tenant}/facilities/{facilityId}
-    description: Get details for one facility.
+    description: Get one tenant facility, its schedule, activities, resource availability, and forecast details.
+    query:
+      at:
+        type: string
+        format: date-time
+        required: false
+    response:
+      facility: FacilityDetail
+      forecast: DemandForecast
+    authorization: Authenticated tenant member. Facility must belong to the tenant in the path.
 
   - method: GET
     path: /api/v1/tenants/{tenant}/facilities/{facilityId}/participation
-    description: Return a student-safe aggregate of voluntary CampusFit check-ins and the 30-minute planning window beginning at the optional `at` timestamp. Never treat this response as total or official occupancy.
+    description: Return a student-safe aggregate of voluntary CampusFit check-ins and the 30-minute planning window beginning at the optional at timestamp. Never treat this response as total or official occupancy.
     query:
       at:
         type: string
@@ -51,72 +104,249 @@ endpoints:
       updatedAt: date-time
       sourceExplanation: string
       officialOccupancyConnected: false
+    mapping: The API adapter combines typical_visitor_range_low and typical_visitor_range_high returned by the Supabase aggregate function into typicalVisitorRange and converts remaining snake_case fields to camelCase.
     privacy: Aggregate-only response. It must not contain visit IDs, user IDs, names, or another student's raw active visit.
 
   - method: GET
     path: /api/v1/tenants/{tenant}/recommendations
-    description: Recommend facilities and times for a workout or activity.
+    description: Rank eligible tenant facilities for a workout or activity while retaining forecast ranges, confidence, source explanations, resource pressure, and travel estimates.
+    query:
+      at:
+        type: string
+        format: date-time
+        required: true
+      intent:
+        type: string
+        enum: [workout, activity]
+        required: true
+      workoutFocuses:
+        type: string[]
+        requiredWhen: intent is workout
+      activity:
+        type: string
+        requiredWhen: intent is activity
+      expectedDurationMinutes:
+        type: integer
+        minimum: 1
+        required: true
+      equipmentNeeds:
+        type: string[]
+        required: false
+    response:
+      recommendations: FacilityRecommendation[]
+    authorization: Authenticated tenant member. Exclude closed, cross-tenant, activity-ineligible, or resource-ineligible facilities.
 
   - method: GET
     path: /api/v1/tenants/{tenant}/me/visits
-    description: List only the signed-in student's visits.
+    description: List only the signed-in student's planned, active, and historical visits.
+    query:
+      status:
+        type: string[]
+        required: false
+    response:
+      visits: Visit[]
+    authorization: Visit owner only.
 
   - method: POST
     path: /api/v1/tenants/{tenant}/me/visits
-    description: Plan a visit or check in now. Return the signed-in student's visit plus the refreshed aggregate participation tracker for the affected facility and arrival window.
+    description: Plan a future visit or check in immediately, then return the new self-owned visit and refreshed aggregate participation for the affected facility window.
+    request:
+      mode: plan | check_in
+      facilityId: string
+      plannedArrivalAt:
+        type: string
+        format: date-time
+        requiredWhen: mode is plan
+      intent: workout | activity
+      workoutFocuses:
+        type: string[]
+        requiredWhen: intent is workout
+      activity:
+        type: string
+        requiredWhen: intent is activity
+      equipmentNeeds:
+        type: string[]
+        required: false
+      expectedDurationMinutes:
+        type: integer
+        minimum: 1
+      privacyLevel:
+        type: string
+        enum: [anonymous_aggregate]
+    response:
+      visit: Visit
+      participation: FacilityParticipationTracker
+    authorization: Authenticated tenant student. Enforce tenant ownership, supported activities, valid workout focuses, and at most one active check-in per student.
 
   - method: PATCH
     path: /api/v1/tenants/{tenant}/me/visits/{visitId}
-    description: Reschedule, check in, complete, extend, or cancel one of the signed-in student's visits. Rescheduling accepts an exact future arrival time and is allowed only while the visit is planned or delayed. Return the student's updated visit plus refreshed aggregate participation trackers for both the previous and new arrival windows when timing changes.
+    description: Apply one allowed lifecycle or content update to the signed-in student's visit and return refreshed aggregates for every affected facility/time window.
     request:
-      action: reschedule | check_in | complete | extend | cancel
+      action: reschedule | check_in | complete | extend | cancel | change_facility | change_workout_focuses | change_activity
       plannedArrivalAt:
         type: string
         format: date-time
         requiredWhen: action is reschedule
-        description: Exact future arrival time for a planned or delayed visit.
       expectedEndAt:
         type: string
         format: date-time
         requiredWhen: action is extend
-        description: Exact future finish time for an active visit.
-    authorization: The visit must belong to the signed-in user and match the tenant in the path. Active or closed visits cannot be rescheduled or cancelled.
+      facilityId:
+        type: string
+        requiredWhen: action is change_facility
+      workoutFocuses:
+        type: string[]
+        requiredWhen: action is change_workout_focuses
+      activity:
+        type: string | null
+        requiredWhen: action is change_activity
+      crowdFeedback:
+        type: string
+        enum: [less_busy, about_as_expected, more_busy]
+        required: false
+        allowedWhen: action is complete
+    response:
+      visit: Visit
+      participation: FacilityParticipationTracker[]
+    authorization: Visit owner only. Planned or delayed visits may be rescheduled, checked in, cancelled, or moved. Active visits may be completed, extended, or have workout/activity details updated. Closed visits never reopen.
 
   - method: DELETE
     path: /api/v1/tenants/{tenant}/me/visits/{visitId}
-    description: Delete one of the student's visits and its history.
+    description: Delete one of the signed-in student's visits and its private history records.
+    authorization: Visit owner only; tenant and visit ownership must both match.
+
+  - method: GET
+    path: /api/v1/tenants/{tenant}/me/notifications
+    description: List reminder and lifecycle notifications belonging to the signed-in user, including expected-finish reminders and automatic-checkout notices.
+    response:
+      notifications: Notification[]
+    authorization: Notification owner only.
+
+  - method: PATCH
+    path: /api/v1/tenants/{tenant}/me/notifications/{notificationId}
+    description: Mark a self-owned notification read or dismissed. Extending or completing a visit still uses the visit endpoint.
+    request:
+      action: read | dismiss
+    authorization: Notification owner only.
+
+  - method: GET
+    path: /api/v1/tenants/{tenant}/staff/facilities
+    description: Return the staff operations overview with tenant facilities, current hours and closures, equipment inventory, aggregate participation, and forecast summaries.
+    response:
+      facilities: StaffFacilitySummary[]
+    authorization: Recreation staff or tenant administrator. Never return student attendance lists; participation remains aggregate-only.
+
+  - method: GET
+    path: /api/v1/tenants/{tenant}/staff/facilities/{facilityId}
+    description: Return the selected facility's staff management workspace data, including equipment inventory, hours, closures, aggregate participation, and forecast review.
+    response:
+      facility: StaffFacilityDetail
+    authorization: Recreation staff or tenant administrator; facility must belong to the tenant.
 
   - method: PATCH
     path: /api/v1/tenants/{tenant}/staff/facilities/{facilityId}/equipment/{equipmentTypeId}
-    description: Mark a selected number of operational equipment units unavailable or restore a selected number of out-of-service units.
+    description: Mark a selected number of operational equipment units unavailable or restore a selected number of out-of-service units, then recalculate affected forecasts.
     request:
       action: mark_unavailable | restore
       units:
         type: integer
         minimum: 1
-        description: Number of units affected. For mark_unavailable this cannot exceed the current operational quantity; for restore it cannot exceed the current out-of-service quantity.
+        description: For mark_unavailable this cannot exceed the operational quantity; for restore it cannot exceed the out-of-service quantity.
       reason:
         type: string
         requiredWhen: action is mark_unavailable
-        description: Staff-provided outage or maintenance reason.
-    authorization: Requires an authorized staff session for the tenant and a facility/equipment inventory owned by that tenant.
+    response:
+      inventory: FacilityEquipment
+      affectedForecasts: DemandForecast[]
+    authorization: Recreation staff or tenant administrator; facility and equipment inventory must belong to the tenant.
 
   - method: PATCH
     path: /api/v1/tenants/{tenant}/staff/facilities/{facilityId}/hours
-    description: Change today's closing time for a facility.
+    description: Change today's closing time for a tenant-owned facility and refresh affected recommendations.
+    request:
+      closingTime:
+        type: string
+        format: HH:mm
+    response:
+      facility: Facility
+      affectedForecasts: DemandForecast[]
+    authorization: Recreation staff or tenant administrator.
 
   - method: PUT
     path: /api/v1/tenants/{tenant}/staff/facilities/{facilityId}/closure
-    description: Temporarily close a facility.
+    description: Temporarily close a tenant-owned facility and immediately exclude it from student recommendations.
+    request:
+      durationMinutes:
+        type: integer
+        minimum: 1
+        default: 120
+      reason:
+        type: string
+        default: Staff-reported temporary closure
+    response:
+      facility: Facility
+      affectedForecasts: DemandForecast[]
+    authorization: Recreation staff or tenant administrator.
 
   - method: DELETE
     path: /api/v1/tenants/{tenant}/staff/facilities/{facilityId}/closure
-    description: Remove a temporary facility closure.
+    description: Remove an active temporary closure and refresh facility recommendations.
+    response:
+      facility: Facility
+      affectedForecasts: DemandForecast[]
+    authorization: Recreation staff or tenant administrator.
 
   - method: PATCH
     path: /api/v1/tenants/{tenant}/admin/settings
-    description: Update university branding, privacy, and visit settings.
+    description: Update the tenant settings currently persisted by the administration UI. Authentication mode and reminder wording remain non-persistent prototype previews and are intentionally excluded.
+    request:
+      primaryColor:
+        type: string
+        format: six-digit-hex-color
+      accentColor:
+        type: string
+        format: six-digit-hex-color
+      privacyCountThreshold:
+        type: integer
+        minimum: 3
+        maximum: 10
+      autoCloseGraceMinutes:
+        type: integer
+        minimum: 10
+        maximum: 90
+    response:
+      university: University
+    authorization: Tenant university administrator or platform administrator.
+
+  - method: POST
+    path: /api/v1/tenants/{tenant}/demo/actions
+    description: Apply one deterministic synthetic scenario action used by the role-gated competition control room.
+    request:
+      action: add_plan | check_in | delay_plan | check_out | move_visit | add_squash | add_badminton | add_climbing | trigger_cable_outage
+    response:
+      demoStatus: DemoStatus
+      affectedParticipation: FacilityParticipationTracker[]
+      affectedForecasts: DemandForecast[]
+    authorization: Demo-enabled environment and tenant administrator or platform administrator. Never expose in production student clients.
 
   - method: POST
     path: /api/v1/tenants/{tenant}/demo/reset
-    description: Reset the temporary demo data; do not include this in production.
+    description: Replace tenant demo state with its deterministic seed while preserving the authorized demo session.
+    response:
+      demoStatus: DemoStatus
+    authorization: Demo-enabled environment and tenant administrator or platform administrator.
+
+  - method: POST
+    path: /api/v1/internal/jobs/visit-lifecycle
+    description: "Run server-side lifecycle maintenance: send expected-finish reminders, expire stale plans, and automatically close active visits after the configured grace period when no extension or checkout response is received."
+    request:
+      at:
+        type: string
+        format: date-time
+        required: false
+        description: Scheduler timestamp; defaults to server time.
+    response:
+      remindersCreated: integer
+      visitsExpired: integer
+      visitsAutoClosed: integer
+    authorization: Service-role scheduler only. This route is not available to browsers or ordinary authenticated users.
