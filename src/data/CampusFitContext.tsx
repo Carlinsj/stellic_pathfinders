@@ -46,6 +46,7 @@ export function CampusFitProvider({ children }: { children: ReactNode }) {
   const [sessions, setSessions] = useState<Record<TenantSlug, UserProfile | undefined>>(() => ({ nyu: readStoredSession('nyu') }));
   const [toast, setToast] = useState<ToastMessage>();
   const remindedVisits = useRef(new Set<string>());
+  const notifiedAutoClosedVisits = useRef(new Set(Object.values(states).flatMap((state) => state.visits.filter((visit) => visit.status === 'auto_closed').map((visit) => visit.id))));
 
   const notify = useCallback((message: string, tone: ToastMessage['tone'] = 'success') => {
     setToast({ id: Date.now(), message, tone });
@@ -54,29 +55,38 @@ export function CampusFitProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const syncToLaptopClock = () => {
       const now = new Date().toISOString();
-      let reminder: string | undefined;
-      let autoClosed = false;
       setStates((current) => Object.fromEntries(Object.entries(current).map(([tenant, state]) => {
         const clockSynced = { ...state, now };
-        const active = clockSynced.visits.find((visit) => visit.userId === clockSynced.currentUser.id && visit.status === 'checked_in');
-        const reminderKey = active ? `${active.id}:${active.expectedEndAt}` : '';
-        if (active && getActiveVisitTiming(active, now) === 'grace_period' && !remindedVisits.current.has(reminderKey)) {
-          remindedVisits.current.add(reminderKey);
-          reminder = 'Are you done with your workout? Check out now or extend your finish time. CampusFit will auto-check you out in 30 minutes.';
-        }
-        const next = autoCloseStaleVisits(clockSynced, now);
-        if (active && next.visits.find((visit) => visit.id === active.id)?.status === 'auto_closed') autoClosed = true;
-        return [tenant, next];
+        return [tenant, autoCloseStaleVisits(clockSynced, now)];
       })) as Record<TenantSlug, DemoState>);
-      if (reminder) {
-        notify(reminder, 'warning');
-        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') new Notification('CampusFit visit', { body: reminder });
-      } else if (autoClosed) notify('CampusFit automatically checked you out after the 30-minute grace period.', 'info');
     };
     syncToLaptopClock();
     const interval = window.setInterval(syncToLaptopClock, 15_000);
     return () => window.clearInterval(interval);
-  }, [notify]);
+  }, []);
+
+  useEffect(() => {
+    let reminder: string | undefined;
+    let autoClosed = false;
+    Object.values(states).forEach((state) => {
+      const active = state.visits.find((visit) => visit.userId === state.currentUser.id && visit.status === 'checked_in');
+      const reminderKey = active ? `${active.id}:${active.expectedEndAt}` : '';
+      if (active && getActiveVisitTiming(active, state.now) === 'grace_period' && !remindedVisits.current.has(reminderKey)) {
+        remindedVisits.current.add(reminderKey);
+        reminder = 'Are you done with your workout? Check out now or extend your finish time. CampusFit will auto-check you out in 30 minutes.';
+      }
+      state.visits.filter((visit) => visit.status === 'auto_closed').forEach((visit) => {
+        if (!notifiedAutoClosedVisits.current.has(visit.id)) {
+          notifiedAutoClosedVisits.current.add(visit.id);
+          autoClosed = true;
+        }
+      });
+    });
+    if (reminder) {
+      notify(reminder, 'warning');
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') new Notification('CampusFit visit', { body: reminder });
+    } else if (autoClosed) notify('CampusFit automatically checked you out after the 30-minute grace period.', 'info');
+  }, [states, notify]);
 
   const updateTenant = useCallback((tenant: TenantSlug, updater: (state: DemoState) => DemoState, message?: string) => {
     setStates((current) => ({ ...current, [tenant]: updater(current[tenant]) }));

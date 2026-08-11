@@ -1,7 +1,7 @@
 import { expect, signInStudent, test } from './fixtures';
 
 async function openQuickCheckIn(page: import('@playwright/test').Page) {
-  const trigger = page.getByRole('button', { name: 'I’m here', exact: true });
+  const trigger = page.getByRole('button', { name: 'Check in', exact: true });
   await trigger.click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
@@ -9,6 +9,29 @@ async function openQuickCheckIn(page: import('@playwright/test').Page) {
 }
 
 test.describe('student planning, visits, demand, and privacy', () => {
+  test('live participation and same-time planning stay aggregate and update together', async ({ page }) => {
+    await signInStudent(page);
+    const liveTracker = page.locator('.participation-tracker:not(.participation-tracker--planning)').first();
+    await expect(liveTracker).toContainText('not total gym occupancy');
+    const liveValues = await liveTracker.locator('.participation-tracker__live-grid strong').allTextContents();
+    expect(Number(liveValues[0])).toBe(Number(liveValues[1]) + Number(liveValues[2]));
+
+    await page.goto('/nyu/plan?facility=nyu_palladium&time=18%3A00&focus=back');
+    const continueButton = page.getByRole('button', { name: /Continue/ });
+    await continueButton.click();
+    await continueButton.click();
+    await continueButton.click();
+    const planningTracker = page.locator('.participation-tracker--planning');
+    await expect(planningTracker).toContainText('scheduled after you save');
+    await expect(planningTracker).toContainText('usually expected at this time');
+    const reviewCount = Number((await planningTracker.locator('.participation-tracker__planning-stats strong').first().innerText()).trim());
+
+    await page.getByRole('button', { name: 'Save visit plan', exact: true }).click();
+    const savedTracker = page.locator('.participation-tracker--planning');
+    await expect(savedTracker).toContainText('scheduled in this window');
+    await expect(savedTracker.locator('.participation-tracker__planning-stats strong').first()).toHaveText(String(reviewCount));
+  });
+
   test('planning always keeps a workout focus and activity-only always has an activity', async ({ page }) => {
     await signInStudent(page);
     await page.getByRole('link', { name: 'Plan' }).first().click();
@@ -104,7 +127,7 @@ test.describe('student planning, visits, demand, and privacy', () => {
 
     const active = page.locator('.active-visit-card');
     await expect(active).toContainText('Chest');
-    await expect(page.getByRole('button', { name: 'Checked in' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Checked in — check-in locked until checkout' })).toBeDisabled();
     const liveFocuses = active.getByRole('group', { name: 'Update muscle groups' });
     await liveFocuses.getByRole('button', { name: 'Legs', exact: true }).click();
     await active.getByLabel('Active activity').selectOption('badminton');
@@ -112,7 +135,7 @@ test.describe('student planning, visits, demand, and privacy', () => {
     await active.getByRole('button', { name: /Wrap up workout/ }).click();
     await expect(active).toHaveCount(0);
 
-    await page.getByRole('link', { name: 'Activity' }).first().click();
+    await page.getByRole('link', { name: 'Visits' }).first().click();
     const newest = page.locator('.history-list article').first();
     await expect(newest).toContainText('Chest + Legs');
     await expect(newest).toContainText('Actual');
@@ -142,7 +165,7 @@ test.describe('student planning, visits, demand, and privacy', () => {
     expect(Date.parse(after) - Date.parse(before)).toBe(20 * 60_000);
     await expect(page.getByRole('status')).toContainText('Visit extended until');
     await expect(page.locator('.active-visit-card').getByRole('button', { name: 'Extend 20 min' })).toBeHidden();
-    await expect(page.getByRole('button', { name: 'Checked in' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Checked in — check-in locked until checkout' })).toBeDisabled();
     await expect(page.getByRole('button', { name: /View active visit/ })).toBeVisible();
   });
 
@@ -180,18 +203,22 @@ test.describe('student planning, visits, demand, and privacy', () => {
     await page.getByRole('link', { name: 'Gyms' }).first().click();
     const cards = page.locator('.gym-recommendation-card');
     await expect(cards).toHaveCount(4);
-    await expect(cards.locator('.data-source-label')).toHaveCount(4);
-    for (const label of await cards.locator('.data-source-label').allTextContents()) {
-      expect(label).toMatch(/\d+–\d+ range/);
-      expect(label).toMatch(/(low|medium|high) confidence/i);
+    await expect(cards.locator('.forecast-estimate')).toHaveCount(4);
+    for (const estimate of await cards.locator('.forecast-estimate').allTextContents()) {
+      expect(estimate).toMatch(/About \d+/);
+      expect(estimate).toContain('expected from past data');
+      expect(estimate).toContain('Mock data');
+      expect(estimate).toMatch(/Underlying model range \d+–\d+/);
+      expect(estimate).toMatch(/(low|medium|high) confidence/i);
     }
 
     await page.goto('/nyu/facilities/nyu_paulson');
     await expect(page.getByText(/Counts under 3 are suppressed/)).toBeVisible();
     await expect(page.getByText(/CampusFit check-ins do not equal official occupancy/)).toBeVisible();
-    await page.getByRole('button', { name: 'Later', exact: true }).click();
-    await expect(page.locator('.timeline-list > div')).toHaveCount(6);
-    await expect(page.getByRole('img', { name: /Demand forecast. Best time/ })).toBeVisible();
+    await page.getByRole('button', { name: 'Schedule', exact: true }).click();
+    await expect(page.locator('.timeline-list > li')).toHaveCount(6);
+    await expect(page.getByRole('list', { name: 'CampusFit demand forecast by arrival time' })).toBeVisible();
+    await expect(page.getByRole('progressbar', { name: /predicted demand/ })).toHaveCount(6);
     await expect(page.getByText(/ranges remain predictions, not official occupancy/)).toBeVisible();
   });
 });

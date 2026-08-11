@@ -28,6 +28,7 @@ temp/
 .idea/
 .vscode/
 .codex/
-.agents/
+/.agents/
 .DS_Store
 /graphify-out
+/design-references/

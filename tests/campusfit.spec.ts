@@ -11,7 +11,12 @@ test('public landing explains sources and privacy', async ({ page }) => {
   const consoleErrors: string[] = [];
   page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });
   await page.goto('/');
-  await expect(page.locator('.skip-link')).toHaveCount(0);
+  const skipLink = page.getByRole('link', { name: 'Skip to main content' });
+  await expect(skipLink).toHaveCount(1);
+  await page.keyboard.press('Tab');
+  await expect(skipLink).toBeFocused();
+  await skipLink.press('Enter');
+  await expect(page.locator('#main-content')).toBeFocused();
   await expect(page.getByRole('heading', { name: /Know where and when/i })).toBeVisible();
   await expect(page.getByText(/All demonstration data is synthetic/i)).toBeVisible();
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'http://127.0.0.1:5173/');
@@ -70,7 +75,7 @@ test('complete NYU planned visit with delay, check-in, and check-out', async ({ 
 test('spontaneous activity-only visit works without location permission', async ({ page }) => {
   await page.goto('/nyu/login');
   await page.getByRole('button', { name: /Maya Chen/ }).click();
-  await page.getByRole('button', { name: 'I’m here', exact: true }).click();
+  await page.getByRole('button', { name: 'Check in', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toContainText('Manual facility selection');
   await dialog.getByRole('button', { name: /Continue/ }).click();
@@ -150,7 +155,7 @@ test('planning shows gym demand, ranking reasons, and mandatory anonymous contri
 test('quick check-in accepts multiple muscle groups', async ({ page }) => {
   await page.goto('/nyu/login');
   await page.getByRole('button', { name: /Maya Chen/ }).click();
-  await page.getByRole('button', { name: 'I’m here', exact: true }).click();
+  await page.getByRole('button', { name: 'Check in', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('button', { name: /Continue/ }).click();
   const focusPicker = dialog.getByRole('group', { name: 'Muscle groups' });
@@ -213,14 +218,14 @@ test('NYU facility activity tabs match the verified recreation catalog', async (
 test('students see workout-specific equipment outages without staff controls', async ({ page }) => {
   await page.goto('/nyu/login');
   await page.getByRole('button', { name: /Maya Chen/ }).click();
-  await page.getByRole('link', { name: 'Demand', exact: true }).first().click();
+  await page.getByRole('link', { name: 'Explore', exact: true }).first().click();
 
   const status = page.locator('.workout-equipment-status');
   await expect(status.getByRole('heading', { name: 'Equipment status for Back' })).toBeVisible();
   await expect(status).toContainText('Cable stations');
   await expect(status).toContainText('2 of 8 out of service');
   await expect(status).toContainText('Staff reported');
-  await expect(page.getByRole('button', { name: /Mark 1 out of service|Restore \d+ units?/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Report issue|Restore \d+ units?/ })).toHaveCount(0);
 
   await page.getByLabel('Workout focus').selectOption('legs');
   await expect(status.getByRole('heading', { name: 'Equipment status for Legs' })).toBeVisible();
@@ -254,7 +259,7 @@ test('student and staff portals enforce separate role access', async ({ page }) 
   await expect(page.getByRole('button', { name: /Sam Ortiz/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /Maya Chen/ })).toHaveCount(0);
   await page.getByRole('button', { name: /Sam Ortiz/ }).click();
-  await expect(page.getByRole('heading', { name: /Keep campus demand trustworthy/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Campus operations at a glance/ })).toBeVisible();
   await expect(page.locator('.admin-console-header')).toContainText('NYU Athletics operations');
   await expect(page.locator('.admin-console-header')).toContainText('Facility operations');
   await expect(page.locator('.desktop-sidebar nav a[href="/nyu/home"], .bottom-nav a[href="/nyu/home"]')).toHaveCount(0);
@@ -277,14 +282,18 @@ test('university administrators land in the protected configuration console', as
 test('staff can restore a bounded number of equipment units and reopen a facility', async ({ page }) => {
   await page.goto('/nyu/staff-login');
   await page.getByRole('button', { name: /Sam Ortiz/ }).click();
+  await page.getByRole('button', { name: 'Manage Palladium' }).click();
+  await page.getByRole('tab', { name: 'Equipment' }).click();
   const inventory = page.locator('.equipment-control-panel');
-  const restoreQuantity = page.getByLabel('Units repaired');
   await expect(inventory).toContainText('2 out of service');
-  await expect(restoreQuantity).toHaveAttribute('max', '2');
 
-  await page.getByRole('button', { name: /Mark 1 out of service/ }).click();
-  await page.getByRole('button', { name: /Mark 1 out of service/ }).click();
+  await page.getByRole('button', { name: /Report issue/ }).click();
+  await page.getByLabel('Units out of service').fill('2');
+  await page.getByRole('button', { name: /Mark 2 units out of service/ }).click();
   await expect(inventory).toContainText('4 out of service');
+  await page.getByRole('button', { name: /Record repair/ }).click();
+  const restoreQuantity = page.getByLabel('Units repaired');
+  await expect(restoreQuantity).toHaveAttribute('max', '4');
   await expect(page.getByRole('button', { name: '3', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'All 4', exact: true })).toBeVisible();
   await restoreQuantity.fill('99');
@@ -296,6 +305,7 @@ test('staff can restore a bounded number of equipment units and reopen a facilit
   await page.getByRole('button', { name: /Restore 3 units/ }).click();
   await expect(inventory).toContainText('7 / 8');
   await expect(inventory).toContainText('1 out of service');
+  await page.getByRole('button', { name: /Record repair/ }).click();
   await expect(restoreQuantity).toHaveAttribute('max', '1');
 
   await page.getByRole('button', { name: /Restore 1 unit/ }).click();
@@ -303,7 +313,9 @@ test('staff can restore a bounded number of equipment units and reopen a facilit
   await expect(inventory).toContainText('Fully operational');
   await expect(page.getByText(/no repairs to record/i)).toBeVisible();
 
+  await page.getByRole('tab', { name: 'Hours' }).click();
   await page.getByRole('button', { name: /Close Palladium for 2 hours/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Close Palladium' }).click();
   await expect(page.getByText('Temporarily closed', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: /Reopen Palladium now/ }).click();
   await expect(page.getByText('Open and operating', { exact: true })).toBeVisible();
@@ -312,9 +324,11 @@ test('staff can restore a bounded number of equipment units and reopen a facilit
 test('staff equipment workspace fits its viewport with touch-friendly controls', async ({ page }, testInfo) => {
   await page.goto('/nyu/staff-login');
   await page.getByRole('button', { name: /Sam Ortiz/ }).click();
+  await page.getByRole('button', { name: 'Manage Palladium' }).click();
+  await page.getByRole('tab', { name: 'Equipment' }).click();
   const workspace = page.locator('.equipment-admin-card');
   await expect(workspace).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Record completed repair' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Record repair/ })).toBeVisible();
 
   const viewport = page.viewportSize()!;
   const bounds = await workspace.boundingBox();
@@ -324,11 +338,21 @@ test('staff equipment workspace fits its viewport with touch-friendly controls',
   const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(horizontalOverflow).toBeLessThanOrEqual(1);
 
+  await page.getByRole('button', { name: /Record repair/ }).click();
   const decreaseButton = page.getByRole('button', { name: 'Decrease restored units' });
   const controlBounds = await decreaseButton.boundingBox();
   expect(controlBounds).not.toBeNull();
   expect(controlBounds!.height).toBeGreaterThanOrEqual(44);
   await page.screenshot({ path: `test-results/campusfit-staff-equipment-${testInfo.project.name}.png`, fullPage: true });
+
+  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await page.getByRole('button', { name: /Report issue/ }).click();
+  const issueQuantity = page.getByLabel('Units out of service');
+  await expect(issueQuantity).toHaveAttribute('max', '6');
+  await issueQuantity.fill('3');
+  await expect(page.locator('.issue-outcome')).toContainText('3 / 8');
+  await expect(page.getByRole('button', { name: 'Mark 3 units out of service' })).toBeVisible();
+  await page.screenshot({ path: `test-results/campusfit-staff-issue-quantity-${testInfo.project.name}.png`, fullPage: true });
 });
 
 test('mobile navigation and privacy states are accessible', async ({ page }, testInfo) => {
@@ -337,17 +361,17 @@ test('mobile navigation and privacy states are accessible', async ({ page }, tes
   await page.getByRole('button', { name: /Maya Chen/ }).click();
   const navigation = page.getByRole('navigation', { name: 'Mobile navigation' });
   await expect(navigation).toBeVisible();
-  await pointerTap(page, navigation.getByRole('link', { name: 'Activity' }));
-  await expect(page.getByText(/Your visits, nobody else’s/)).toBeVisible();
+  await pointerTap(page, navigation.getByRole('link', { name: 'Visits' }));
+  await expect(page.getByRole('heading', { name: /Your CampusFit activity, kept private/ })).toBeVisible();
   await expect(page.getByText(/Private to Maya Chen/)).toBeVisible();
 });
 
 test('mobile check-in opens without a privacy selector or duplicated review', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile', 'mobile-only assertion');
   await page.goto('/nyu/login');
-  await expect(page.locator('.skip-link')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Skip to main content' })).toHaveCount(1);
   await page.getByRole('button', { name: /Maya Chen/ }).click();
-  await page.getByRole('button', { name: 'I’m here', exact: true }).click();
+  await page.getByRole('button', { name: 'Check in', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('button', { name: /Continue/ }).click();
   await dialog.getByRole('button', { name: /Continue/ }).click();

@@ -122,6 +122,23 @@ export interface LiveAggregate {
   discountedAutoClosed: number;
 }
 
+export interface FacilityParticipationTracker {
+  universityId: string;
+  facilityId: string;
+  intervalStart: string;
+  intervalEnd: string;
+  campusFitCheckIns: number;
+  plannedCheckIns: number;
+  walkInCheckIns: number;
+  scheduledForWindow: number;
+  scheduledNotCheckedIn: number;
+  typicalVisitorRange: [number, number];
+  confidence: Confidence;
+  updatedAt: string;
+  sourceExplanation: string;
+  officialOccupancyConnected: false;
+}
+
 export interface Forecast {
   facilityId: string;
   intervalStart: string;

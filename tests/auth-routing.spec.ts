@@ -69,7 +69,7 @@ test.describe('authentication, sessions, and route guards', () => {
     for (const path of ['/nyu/admin', '/nyu/demo', '/nyu/home']) {
       await page.goto(path);
       await expect(page).toHaveURL(/\/nyu\/staff$/);
-      await expect(page.getByRole('heading', { name: /Keep campus demand trustworthy/ })).toBeVisible();
+      await expect(page.getByRole('heading', { name: /Campus operations at a glance/ })).toBeVisible();
     }
 
     await page.locator('.admin-console-session').getByRole('button', { name: /Sign out/ }).click();

@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import { CampusFitProvider } from './data/CampusFitContext';
+import './tokens.css';
 import './styles.css';
 import './premium.css';
 

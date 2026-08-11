@@ -5,7 +5,7 @@ import { Brand } from '../components/Brand';
 export function PrivacyPage() {
   return <div className="policy-page">
     <header className="policy-header"><Brand /><Link to="/"><ArrowLeft size={16} />Back to CampusFit</Link></header>
-    <main id="main-content" className="policy-main">
+    <main id="main-content" className="policy-main" tabIndex={-1}>
       <div className="policy-heading"><span className="kicker"><ShieldCheck size={15} />Privacy policy</span><h1>Privacy in the CampusFit prototype</h1><p>Effective August 5, 2026</p></div>
 
       <aside className="policy-summary" aria-label="Privacy summary">

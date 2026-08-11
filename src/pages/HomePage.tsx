@@ -1,19 +1,21 @@
-import { ArrowRight, CalendarClock, CalendarPlus, Check, CheckCircle2, ChevronRight, Clock3, Dumbbell, GitCompareArrows, MapPin, Navigation, ShieldCheck, Sparkles, UsersRound } from 'lucide-react';
+import { ArrowRight, Building2, CalendarClock, CalendarPlus, CalendarX2, Check, CheckCircle2, ChevronRight, Clock3, Dumbbell, GitCompareArrows, MapPin, Navigation, ShieldCheck, Sparkles, UsersRound } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FacilityCard } from '../components/FacilityCard';
+import { ParticipationTracker } from '../components/ParticipationTracker';
 import { WorkoutFocusPicker } from '../components/WorkoutFocusPicker';
 import { VisitPrivacyPicker } from '../components/VisitPrivacyPicker';
-import { Button, DataLabel, DataSourceLabel, Modal, QuickAction, SectionHeader, SegmentedControl, StatusPill } from '../components/ui';
+import { Button, DataLabel, ForecastEstimate, Modal, QuickAction, SectionHeader, SegmentedControl, StatusPill } from '../components/ui';
 import { useCampusFit } from '../data/CampusFitContext';
 import { useTenant } from '../data/TenantContext';
 import { activities, workoutFocuses } from '../data/catalog';
 import type { VisitIntent } from '../domain/types';
-import { crowdLabel, formatTime, formatTimeInput, replaceTime } from '../lib/format';
+import { crowdLabel, formatDate, formatTime, formatTimeInput } from '../lib/format';
 import { getLiveAggregate } from '../services/liveAggregation';
+import { getFacilityParticipationTracker } from '../services/participationTracker';
 import { findBetterRecommendationWindow, getRecommendationGuidance, recommendFacilities } from '../services/recommendation';
-import { forecastDemand } from '../services/forecasting';
-import { changeActivity, changeWorkoutFocuses, checkInPlannedVisit, checkOutVisit, delayVisit, extendVisit, extendVisitUntil, spontaneousCheckIn } from '../services/visitLifecycle';
+import { forecastDemand, isFacilityOpen } from '../services/forecasting';
+import { cancelVisit, changeActivity, changeWorkoutFocuses, checkInPlannedVisit, checkOutVisit, extendVisitUntil, rescheduleVisit, spontaneousCheckIn } from '../services/visitLifecycle';
 import { getActiveVisitTiming, graceMinutesRemaining } from '../services/visitReminders';
 import { getVisitWorkoutFocuses } from '../services/workoutFocus';
 
@@ -31,18 +33,20 @@ export function HomePage() {
   const { updateTenant } = useCampusFit();
   const [checkInOpen, setCheckInOpen] = useState(false);
   const [checkInStep, setCheckInStep] = useState(0);
-  const [lateOpen, setLateOpen] = useState(false);
+  const [managePlanOpen, setManagePlanOpen] = useState(false);
+  const [managePlanView, setManagePlanView] = useState<'reschedule' | 'cancel'>('reschedule');
   const [facilityId, setFacilityId] = useState(state.currentUser.preferredFacilityId ?? state.facilities[0]!.id);
   const [visitIntent, setVisitIntent] = useState<VisitIntent>('workout');
   const [selectedFocuses, setSelectedFocuses] = useState<string[]>(['general_workout']);
   const [activity, setActivity] = useState('');
   const [duration, setDuration] = useState('60');
-  const [customLateTime, setCustomLateTime] = useState('18:30');
+  const [rescheduledArrival, setRescheduledArrival] = useState('');
   const [extensionEnd, setExtensionEnd] = useState('');
   const recommendations = useMemo(() => recommendFacilities(state, state.now, 'back', undefined, 50), [state]);
   const best = recommendations.find((item) => item.eligible) ?? recommendations[0]!;
   const guidance = useMemo(() => getRecommendationGuidance(best), [best]);
   const bestAggregate = useMemo(() => getLiveAggregate(state, best.facility.id), [best.facility.id, state]);
+  const bestParticipation = useMemo(() => getFacilityParticipationTracker(state, best.facility.id), [best.facility.id, state]);
   const betterWindow = useMemo(
     () => findBetterRecommendationWindow(state, state.now, 'back', undefined, 50, [], best),
     [best, state]
@@ -54,6 +58,9 @@ export function HomePage() {
   const upcomingVisit = state.visits.find((visit) => visit.userId === state.currentUser.id && (visit.status === 'planned' || visit.status === 'delayed'));
   const activeFacility = activeVisit ? state.facilities.find((facility) => facility.id === activeVisit.facilityId) : undefined;
   const upcomingFacility = upcomingVisit ? state.facilities.find((facility) => facility.id === upcomingVisit.facilityId) : undefined;
+  const upcomingParticipation = useMemo(() => upcomingVisit?.plannedArrivalAt
+    ? getFacilityParticipationTracker(state, upcomingVisit.facilityId, upcomingVisit.plannedArrivalAt)
+    : undefined, [state, upcomingVisit]);
   const firstName = state.currentUser.fullName.split(' ')[0];
   const activeVisitPurpose = activeVisit?.intent === 'activity'
     ? activities.find((item) => item.key === activeVisit.activity)?.label ?? 'Activity'
@@ -66,6 +73,8 @@ export function HomePage() {
   const activeElapsed = activeVisit?.checkedInAt ? Math.max(0, Math.round((Date.parse(state.now) - Date.parse(activeVisit.checkedInAt)) / 60_000)) : 0;
   const activeTiming = activeVisit ? getActiveVisitTiming(activeVisit, state.now) : 'on_time';
   const extensionValue = extensionEnd || (activeVisit?.expectedEndAt ? toLocalDateTimeInput(activeVisit.expectedEndAt) : '');
+  const openFacilityCount = state.facilities.filter((facility) => isFacilityOpen(facility, state.now)).length;
+  const campusFitCheckIns = state.facilities.reduce((sum, facility) => sum + getLiveAggregate(state, facility.id).campusFitCheckIns, 0);
 
   const openCheckIn = () => {
     setCheckInStep(0);
@@ -97,16 +106,26 @@ export function HomePage() {
       if (!selectedFacilitySupportsActivity) setFacilityId(state.facilities.find((facility) => facility.activities.includes(nextActivity))!.id);
     }
   };
-  const handleDelay = (minutes: number) => {
-    if (!upcomingVisit) return;
-    updateTenant(tenant, (current) => delayVisit(current, upcomingVisit.id, minutes), `Arrival moved ${minutes} minutes — forecasts recalculated`);
-    setLateOpen(false);
-  };
-  const handleCustomDelay = () => {
+  const openPlanManager = () => {
     if (!upcomingVisit?.plannedArrivalAt) return;
-    const next = replaceTime(upcomingVisit.plannedArrivalAt, customLateTime);
-    const minutes = Math.max(1, Math.round((Date.parse(next) - Date.parse(upcomingVisit.plannedArrivalAt)) / 60_000));
-    handleDelay(minutes);
+    setRescheduledArrival(toLocalDateTimeInput(upcomingVisit.plannedArrivalAt));
+    setManagePlanView('reschedule');
+    setManagePlanOpen(true);
+  };
+  const closePlanManager = () => {
+    setManagePlanOpen(false);
+    setManagePlanView('reschedule');
+  };
+  const handleReschedule = () => {
+    if (!upcomingVisit || !rescheduledArrival) return;
+    const plannedArrivalAt = new Date(rescheduledArrival).toISOString();
+    updateTenant(tenant, (current) => rescheduleVisit(current, upcomingVisit.id, plannedArrivalAt), `${upcomingVisit.intent === 'activity' ? 'Activity' : 'Workout'} rescheduled for ${formatDate(plannedArrivalAt, state.university.timezone)} at ${formatTime(plannedArrivalAt, state.university.timezone)}`);
+    closePlanManager();
+  };
+  const handleCancelPlan = () => {
+    if (!upcomingVisit) return;
+    updateTenant(tenant, (current) => cancelVisit(current, upcomingVisit.id), `${upcomingVisit.intent === 'activity' ? 'Activity' : 'Workout'} cancelled`);
+    closePlanManager();
   };
   const handleExtension = () => {
     if (!activeVisit || !extensionValue) return;
@@ -114,9 +133,40 @@ export function HomePage() {
     updateTenant(tenant, (current) => extendVisitUntil(current, activeVisit.id, expectedEndAt), `Visit extended until ${formatTime(expectedEndAt, state.university.timezone)}`);
     setExtensionEnd('');
   };
+  const proposedArrivalAt = rescheduledArrival ? Date.parse(rescheduledArrival) : Number.NaN;
+  const currentArrivalAt = upcomingVisit?.plannedArrivalAt ? Date.parse(upcomingVisit.plannedArrivalAt) : Number.NaN;
+  const canSaveReschedule = Number.isFinite(proposedArrivalAt) && proposedArrivalAt > Date.parse(state.now) && proposedArrivalAt !== currentArrivalAt;
+  const upcomingVisitType = upcomingVisit?.intent === 'activity' ? 'activity' : 'workout';
+
+  const activeVisitExperience = activeVisit && activeFacility ? <>
+    <section className="active-visit-card" aria-labelledby="active-visit-title">
+      <div className="active-visit-card__top">
+        <div className="active-visit-pulse" aria-hidden="true"><span /><Dumbbell /></div>
+        <div className="active-visit-card__identity"><DataLabel>{activeVisit.intent === 'activity' ? 'Active activity visit' : 'Active workout'}</DataLabel><h2 id="active-visit-title">You’re at {activeFacility.shortName}</h2></div>
+        <div className="active-actions"><Button onClick={() => updateTenant(tenant, (current) => checkOutVisit(current, activeVisit.id, 'about_as_expected'), 'Checked out — thanks for helping CampusFit')}>Wrap up workout <Check size={17} /></Button></div>
+      </div>
+      <div className="active-visit-main">
+        <div className="active-visit-summary">
+          <div className="active-timer"><strong>{activeElapsed}<small>min</small></strong><span>Expected finish<br /><b>{formatTime(activeVisit.expectedEndAt!, state.university.timezone)}</b></span></div>
+          <p>{activeVisitPurpose} · Started {formatTime(activeVisit.checkedInAt!, state.university.timezone)}</p>
+          <div className="active-meta"><span><ShieldCheck size={16} /> Contributing anonymously</span></div>
+        </div>
+        <div className="active-editors">{activeVisit.intent === 'workout' ? <WorkoutFocusPicker compact legend="Update muscle groups" description="Your live demand contribution updates when these change." selected={getVisitWorkoutFocuses(activeVisit)} onChange={(focuses) => updateTenant(tenant, (current) => changeWorkoutFocuses(current, activeVisit.id, focuses), 'Live workout demand updated')} /> : null}<label>Change activity<select aria-label="Active activity" value={activeVisit.activity ?? ''} onChange={(event) => updateTenant(tenant, (current) => changeActivity(current, activeVisit.id, event.target.value || undefined), 'Live activity demand updated')}>{activeVisit.intent === 'workout' ? <option value="">No activity</option> : null}{activities.filter((item) => activeFacility.activities.includes(item.key)).map((item) => <option value={item.key} key={item.key}>{item.label}</option>)}</select></label></div>
+      </div>
+    </section>
+    <section className={`visit-extension-panel${activeTiming === 'grace_period' ? ' is-overdue' : ''}`} aria-labelledby="visit-extension-title"><div><Clock3 /><div><h2 id="visit-extension-title">{activeTiming === 'grace_period' ? 'Are you finished?' : 'Need more time?'}</h2><p>{activeTiming === 'grace_period' ? `Your clock is still running. Extend it or check out within ${graceMinutesRemaining(activeVisit, state.now)} minutes to avoid automatic checkout.` : 'Set the exact time you expect to finish. There is no fixed 20-minute limit.'}</p></div></div><label>New finish time<input type="datetime-local" min={toLocalDateTimeInput(state.now)} value={extensionValue} onChange={(event) => setExtensionEnd(event.target.value)} /></label><div><Button variant="secondary" onClick={handleExtension}>Extend until this time</Button>{activeTiming === 'grace_period' ? <Button onClick={() => updateTenant(tenant, (current) => checkOutVisit(current, activeVisit.id, 'about_as_expected'), 'Checked out — thanks for helping CampusFit')}>I’m done <Check size={17} /></Button> : null}</div></section>
+  </> : null;
 
   return <div className="page-stack home-page">
-    <header className="page-header home-header"><div><DataLabel>{state.university.shortName} recreation</DataLabel><h1>{greeting}, {firstName}</h1><p>Here’s the best move for your workout today.</p></div><Button size="large" onClick={openCheckIn} disabled={Boolean(activeVisit)}><Navigation size={18} /> {activeVisit ? 'Checked in' : 'I’m here'}</Button></header>
+    <header className="page-header home-header"><div><DataLabel>{state.university.shortName} recreation</DataLabel><h1>{greeting}, {firstName}</h1><p>Here’s the best move for your workout today.</p></div><button type="button" className={`home-checkin-control${activeVisit ? ' is-locked' : ''}`} onClick={openCheckIn} disabled={Boolean(activeVisit)} aria-label={activeVisit ? 'Checked in — check-in locked until checkout' : 'Check in'}>{activeVisit ? 'Checked in · locked' : 'Check in'}</button></header>
+
+    {activeVisitExperience}
+
+    <section className="student-overview" aria-label="Your CampusFit overview">
+      <article><span><Building2 aria-hidden="true" /></span><div><strong>{openFacilityCount} of {state.facilities.length}</strong><small>facilities open now</small></div></article>
+      <article><span><UsersRound aria-hidden="true" /></span><div><strong>{campusFitCheckIns}</strong><small>voluntary check-ins</small></div></article>
+      <article><span><CalendarClock aria-hidden="true" /></span><div><strong>{activeVisit ? `${activeElapsed} min` : upcomingVisit ? formatTime(upcomingVisit.plannedArrivalAt!, state.university.timezone) : best.facility.shortName}</strong><small>{activeVisit ? 'active visit' : upcomingVisit ? `next at ${upcomingFacility?.shortName ?? 'your facility'}` : 'recommended next'}</small></div></article>
+    </section>
 
     <section className="recommendation-hero">
       <div className="recommendation-copy">
@@ -155,7 +205,7 @@ export function HomePage() {
         <details className="recommendation-details">
           <summary>How CampusFit calculated this</summary>
           <div>
-            <DataSourceLabel>CampusFit prediction · {best.forecast.expectedRange[0]}–{best.forecast.expectedRange[1]} range · {best.forecast.confidence} confidence</DataSourceLabel>
+            <ForecastEstimate forecast={best.forecast} />
             <p>{best.forecast.sourceExplanation}</p>
             <p><strong>Live check-ins:</strong> {bestAggregate.sourceExplanation}</p>
           </div>
@@ -163,18 +213,18 @@ export function HomePage() {
       </div>
     </section>
 
-    <section className="quick-actions-section" aria-labelledby="quick-actions-title"><SectionHeader eyebrow="Your next step" title="What do you want to do?" /><h2 id="quick-actions-title" className="sr-only">Quick actions</h2><div className="quick-action-grid"><QuickAction icon={<Navigation />} label={activeVisit ? 'View active visit' : 'I’m here'} note={activeVisit ? `${activeElapsed} min in progress` : 'Check in anonymously'} onClick={activeVisit ? () => document.querySelector('.active-visit-card')?.scrollIntoView({ behavior: 'smooth' }) : openCheckIn} /><QuickAction icon={<CalendarPlus />} label="Plan workout" note="Choose time and focus" to={`/${tenant}/plan`} /><QuickAction icon={<GitCompareArrows />} label="Compare gyms" note="Ranked for your workout" to={`/${tenant}/facilities`} /></div></section>
+    <ParticipationTracker tracker={bestParticipation} facilityName={best.facility.shortName} timezone={state.university.timezone} />
 
-    {activeVisit && activeFacility ? <section className="active-visit-card" aria-labelledby="active-visit-title"><div className="active-visit-pulse"><span /><Dumbbell /></div><div className="active-visit-main"><DataLabel>{activeVisit.intent === 'activity' ? 'Active activity visit' : 'Active workout'}</DataLabel><h2 id="active-visit-title">You’re at {activeFacility.shortName}</h2><div className="active-timer"><strong>{activeElapsed}<small>min</small></strong><span>Expected finish<br /><b>{formatTime(activeVisit.expectedEndAt!, state.university.timezone)}</b></span></div><p>{activeVisitPurpose} · Started {formatTime(activeVisit.checkedInAt!, state.university.timezone)}</p><div className="active-meta"><span><ShieldCheck size={16} /> Contributing anonymously</span></div><div className="active-editors">{activeVisit.intent === 'workout' ? <WorkoutFocusPicker compact legend="Update muscle groups" description="Your live demand contribution updates when these change." selected={getVisitWorkoutFocuses(activeVisit)} onChange={(focuses) => updateTenant(tenant, (current) => changeWorkoutFocuses(current, activeVisit.id, focuses), 'Live workout demand updated')} /> : null}<label>Change activity<select aria-label="Active activity" value={activeVisit.activity ?? ''} onChange={(event) => updateTenant(tenant, (current) => changeActivity(current, activeVisit.id, event.target.value || undefined), 'Live activity demand updated')}>{activeVisit.intent === 'workout' ? <option value="">No activity</option> : null}{activities.filter((item) => activeFacility.activities.includes(item.key)).map((item) => <option value={item.key} key={item.key}>{item.label}</option>)}</select></label></div></div><div className="active-actions"><Button variant="secondary" onClick={() => updateTenant(tenant, (current) => extendVisit(current, activeVisit.id, 20), 'Visit extended by 20 minutes')}>Extend 20 min</Button><Button onClick={() => updateTenant(tenant, (current) => checkOutVisit(current, activeVisit.id, 'about_as_expected'), 'Checked out — thanks for helping CampusFit')}>Wrap up workout <Check size={17} /></Button></div></section> : null}
+    <section className="quick-actions-section" aria-labelledby="quick-actions-title"><SectionHeader eyebrow="Your next step" title="What do you want to do?" titleId="quick-actions-title" /><div className="quick-action-grid"><QuickAction icon={<Navigation />} label={activeVisit ? 'View active visit' : 'I’m here'} note={activeVisit ? `${activeElapsed} min in progress` : 'Check in anonymously'} onClick={activeVisit ? () => document.querySelector('.active-visit-card')?.scrollIntoView({ behavior: 'smooth' }) : openCheckIn} /><QuickAction icon={<CalendarPlus />} label="Plan workout" note="Choose time and focus" to={`/${tenant}/plan`} /><QuickAction icon={<GitCompareArrows />} label="Compare gyms" note="Ranked for your workout" to={`/${tenant}/facilities`} /></div></section>
 
-    {activeVisit ? <section className={`visit-extension-panel${activeTiming === 'grace_period' ? ' is-overdue' : ''}`} aria-labelledby="visit-extension-title"><div><Clock3 /><div><h2 id="visit-extension-title">{activeTiming === 'grace_period' ? 'Are you finished?' : 'Need more time?'}</h2><p>{activeTiming === 'grace_period' ? `Your clock is still running. Extend it or check out within ${graceMinutesRemaining(activeVisit, state.now)} minutes to avoid automatic checkout.` : 'Set the exact time you expect to finish. There is no fixed 20-minute limit.'}</p></div></div><label>New finish time<input type="datetime-local" min={toLocalDateTimeInput(state.now)} value={extensionValue} onChange={(event) => setExtensionEnd(event.target.value)} /></label><div><Button variant="secondary" onClick={handleExtension}>Extend until this time</Button>{activeTiming === 'grace_period' ? <Button onClick={() => updateTenant(tenant, (current) => checkOutVisit(current, activeVisit.id, 'about_as_expected'), 'Checked out — thanks for helping CampusFit')}>I’m done <Check size={17} /></Button> : null}</div></section> : null}
+    {upcomingVisit && upcomingFacility ? <section className="upcoming-strip"><div className="upcoming-icon"><CalendarClock /></div><div><DataLabel>{upcomingVisit.status === 'delayed' ? 'Updated arrival' : `Upcoming ${upcomingVisit.intent === 'activity' ? 'activity' : 'workout'}`}</DataLabel><h3>{upcomingFacility.shortName} at {formatTime(upcomingVisit.plannedArrivalAt!, state.university.timezone)}</h3><p>{upcomingVisitPurpose} · {upcomingVisit.expectedDurationMinutes} min · {crowdLabel(forecastDemand(state, upcomingFacility.id, upcomingVisit.plannedArrivalAt!).crowdLevel)} expected</p></div><div className="upcoming-actions"><button onClick={openPlanManager}>Manage plan</button><button onClick={() => updateTenant(tenant, (current) => checkInPlannedVisit(current, upcomingVisit.id), 'Plan converted to a live check-in — no double counting')}>I’m here <ArrowRight size={16} /></button></div></section> : null}
 
-    {upcomingVisit && upcomingFacility ? <section className="upcoming-strip"><div className="upcoming-icon"><CalendarClock /></div><div><DataLabel>{upcomingVisit.status === 'delayed' ? 'Updated arrival' : `Upcoming ${upcomingVisit.intent === 'activity' ? 'activity' : 'workout'}`}</DataLabel><h3>{upcomingFacility.shortName} at {formatTime(upcomingVisit.plannedArrivalAt!, state.university.timezone)}</h3><p>{upcomingVisitPurpose} · {upcomingVisit.expectedDurationMinutes} min · {crowdLabel(forecastDemand(state, upcomingFacility.id, upcomingVisit.plannedArrivalAt!).crowdLevel)} expected</p></div><div className="upcoming-actions"><button onClick={() => setLateOpen(true)}>Running late?</button><button onClick={() => updateTenant(tenant, (current) => checkInPlannedVisit(current, upcomingVisit.id), 'Plan converted to a live check-in — no double counting')}>I’m here <ArrowRight size={16} /></button></div></section> : null}
+    {upcomingParticipation && upcomingFacility ? <ParticipationTracker tracker={upcomingParticipation} facilityName={upcomingFacility.shortName} timezone={state.university.timezone} planning /> : null}
 
-    <section className="today-grid">{betterWindow ? <article className="insight-card"><div className="card-heading"><div><DataLabel>Later today</DataLabel><h2>A better window opens at {formatTime(betterWindow.at, state.university.timezone)}</h2></div><Clock3 /></div><p>{betterWindow.explanation} {betterWindow.minutesSavedRange[1] > 0 ? betterWindow.minutesSavedRange[0] > 0 ? `The estimated visit is ${betterWindow.minutesSavedRange[0]}–${betterWindow.minutesSavedRange[1]} minutes shorter.` : `The estimated visit could be up to ${betterWindow.minutesSavedRange[1]} minutes shorter.` : 'The overall fit improves even though the visit-duration ranges overlap.'}</p><div className="time-compare"><div><small>{formatTime(state.now, state.university.timezone)}</small><strong>{crowdLabel(best.forecast.crowdLevel)}</strong><span className={`bar bar--${best.forecast.crowdLevel}`} /></div><ChevronRight /><div><small>{formatTime(betterWindow.at, state.university.timezone)}</small><strong>{crowdLabel(betterWindow.recommendation.forecast.crowdLevel)}</strong><span className={`bar bar--${betterWindow.recommendation.forecast.crowdLevel}`} /></div></div><p className="forecast-source">Later forecast range: {betterWindow.recommendation.forecast.expectedRange[0]}–{betterWindow.recommendation.forecast.expectedRange[1]} expected visits · {betterWindow.recommendation.forecast.confidence} confidence. {betterWindow.recommendation.forecast.sourceExplanation}</p><Link className="text-link" to={`/${tenant}/plan?facility=${betterWindow.recommendation.facility.id}&time=${formatTimeInput(betterWindow.at, state.university.timezone)}&focus=back`}>Plan {betterWindow.recommendation.facility.shortName} for {formatTime(betterWindow.at, state.university.timezone)} <ArrowRight size={16} /></Link></article> : <article className="insight-card"><div className="card-heading"><div><DataLabel>Later today</DataLabel><h2>No clearly better window found</h2></div><Clock3 /></div><p>CampusFit did not find an open facility in the next three hours that improves the current fit score by at least eight points.</p><Link className="text-link" to={`/${tenant}/plan?focus=back`}>Compare times manually <ArrowRight size={16} /></Link></article>}
-      <article className="insight-card"><div className="card-heading"><div><DataLabel>Live CampusFit participation</DataLabel><h2>{state.facilities.reduce((sum, facility) => sum + getLiveAggregate(state, facility.id).campusFitCheckIns, 0)} students checked in</h2></div><UsersRound /></div><p>Voluntary CampusFit check-ins across {state.university.shortName}. This is not official total gym occupancy.</p><div className="focus-tags">{['Back', 'Cardio', 'Legs', 'Full body'].map((label, index) => <span key={label}>{label}<b>{12 - index * 2}</b></span>)}</div><Link className="text-link" to={`/${tenant}/activity`}>Explore demand <ArrowRight size={16} /></Link></article></section>
+    <section className="today-grid">{betterWindow ? <article className="insight-card"><div className="card-heading"><div><DataLabel>Later today</DataLabel><h2>A better window opens at {formatTime(betterWindow.at, state.university.timezone)}</h2></div><Clock3 /></div><p>{betterWindow.explanation} {betterWindow.minutesSavedRange[1] > 0 ? betterWindow.minutesSavedRange[0] > 0 ? `The estimated visit is ${betterWindow.minutesSavedRange[0]}–${betterWindow.minutesSavedRange[1]} minutes shorter.` : `The estimated visit could be up to ${betterWindow.minutesSavedRange[1]} minutes shorter.` : 'The overall fit improves even though the visit-duration ranges overlap.'}</p><div className="time-compare"><div><small>{formatTime(state.now, state.university.timezone)}</small><strong>{crowdLabel(best.forecast.crowdLevel)}</strong><span className={`bar bar--${best.forecast.crowdLevel}`} /></div><ChevronRight /><div><small>{formatTime(betterWindow.at, state.university.timezone)}</small><strong>{crowdLabel(betterWindow.recommendation.forecast.crowdLevel)}</strong><span className={`bar bar--${betterWindow.recommendation.forecast.crowdLevel}`} /></div></div><ForecastEstimate forecast={betterWindow.recommendation.forecast} /><Link className="text-link" to={`/${tenant}/plan?facility=${betterWindow.recommendation.facility.id}&time=${formatTimeInput(betterWindow.at, state.university.timezone)}&focus=back`}>Plan {betterWindow.recommendation.facility.shortName} for {formatTime(betterWindow.at, state.university.timezone)} <ArrowRight size={16} /></Link></article> : <article className="insight-card"><div className="card-heading"><div><DataLabel>Later today</DataLabel><h2>No clearly better window found</h2></div><Clock3 /></div><p>CampusFit did not find an open facility in the next three hours that improves the current fit score by at least eight points.</p><Link className="text-link" to={`/${tenant}/plan?focus=back`}>Compare times manually <ArrowRight size={16} /></Link></article>}
+      <article className="insight-card"><div className="card-heading"><div><DataLabel>Live CampusFit participation</DataLabel><h2>{campusFitCheckIns} students checked in</h2></div><UsersRound /></div><p>Voluntary CampusFit check-ins across {state.university.shortName}. This is not official total gym occupancy.</p><div className="focus-tags" aria-label="Current facility operating status">{state.facilities.map((facility) => <span key={facility.id}>{facility.shortName}<b>{isFacilityOpen(facility, state.now) ? 'Open' : 'Closed'}</b></span>)}</div><Link className="text-link" to={`/${tenant}/activity`}>Explore demand <ArrowRight size={16} /></Link></article></section>
 
-    <section><div className="section-row"><div><DataLabel>Across NYU</DataLabel><h2>Choose your facility</h2></div><Link className="text-link" to={`/${tenant}/facilities`}>Compare all four <ArrowRight size={16} /></Link></div><div className="facility-grid facility-grid--home">{state.facilities.map((facility) => <FacilityCard key={facility.id} state={state} facility={facility} tenant={tenant} compact />)}</div></section>
+    <section><div className="section-row"><div><DataLabel>Across NYU</DataLabel><h2>Facilities near you</h2></div><Link className="text-link" to={`/${tenant}/facilities`}>View all facilities <ArrowRight size={16} /></Link></div><div className="facility-grid facility-grid--home">{state.facilities.map((facility) => <FacilityCard key={facility.id} state={state} facility={facility} tenant={tenant} compact />)}</div></section>
 
     <Modal open={checkInOpen} onClose={closeCheckIn} title={checkInStep === 4 ? 'You’re checked in' : 'I’m here'} description={checkInStep === 4 ? undefined : 'Manual facility selection works without location access.'} label={checkInStep === 4 ? 'Visit started' : `Quick check-in · ${Math.min(checkInStep + 1, 4)} of 4`}>
       {checkInStep === 0 ? <div className="checkin-step"><h3>Which NYU gym are you at?</h3><div className="sheet-choice-list">{state.facilities.map((facility) => <button type="button" key={facility.id} className={facilityId === facility.id ? 'is-selected' : ''} onClick={() => { setFacilityId(facility.id); setActivity(''); }}><span>{facility.shortName.slice(0, 2).toUpperCase()}</span><strong>{facility.shortName}<small>{facility.address}</small></strong>{facilityId === facility.id ? <Check /> : null}</button>)}</div><Button size="large" onClick={() => setCheckInStep(1)}>Continue <ArrowRight /></Button></div> : null}
@@ -183,6 +233,20 @@ export function HomePage() {
       {checkInStep === 3 ? <div className="checkin-step checkin-review-simple"><h3>Ready to check in?</h3><div className="checkin-review-card"><span>{state.facilities.find((facility) => facility.id === facilityId)?.shortName}</span><strong>{visitIntent === 'activity' ? activities.find((item) => item.key === activity)?.label : workoutFocusLabel(selectedFocuses)}</strong><small>{duration} minutes</small></div><div className="sheet-step-actions"><Button variant="ghost" onClick={() => setCheckInStep(2)}>Back</Button><Button size="large" onClick={handleSpontaneous}>Check in <ArrowRight /></Button></div><VisitPrivacyPicker /></div> : null}
       {checkInStep === 4 ? <div className="checkin-confirmation" role="status"><span><CheckCircle2 /></span><h3>You’re checked in at {state.facilities.find((facility) => facility.id === facilityId)?.shortName}.</h3><p>Your visit is contributing anonymously to approximate gym and workout-area demand.</p><Button size="large" onClick={closeCheckIn}>View active visit</Button></div> : null}
     </Modal>
-    <Modal open={lateOpen} onClose={() => setLateOpen(false)} title="Running late?" description="Your old forecast interval will decrease and the new one will recalculate."><div className="late-options"><button onClick={() => handleDelay(10)}>10 minutes late</button><button onClick={() => handleDelay(20)}>20 minutes late</button><button onClick={() => handleDelay(30)}>30 minutes late</button><label>Choose another time<input type="time" value={customLateTime} onChange={(event) => setCustomLateTime(event.target.value)} /></label><Button onClick={handleCustomDelay}>Update arrival time</Button></div></Modal>
+    <Modal open={managePlanOpen} onClose={closePlanManager} title={managePlanView === 'cancel' ? `Cancel this ${upcomingVisitType}?` : `Manage your ${upcomingVisitType}`} description={managePlanView === 'cancel' ? 'This cannot be undone, but you can make a new plan at any time.' : 'Change when you plan to arrive or cancel this visit.'} label={managePlanView === 'cancel' ? 'Confirm cancellation' : 'Upcoming visit'}>
+      {upcomingVisit && upcomingFacility && managePlanView === 'reschedule' ? <div className="visit-management">
+        <div className="visit-management__summary"><span aria-hidden="true"><CalendarClock /></span><div><strong>{upcomingFacility.shortName}</strong><small>{upcomingVisitPurpose} · {upcomingVisit.expectedDurationMinutes} minutes</small><small>Currently {formatDate(upcomingVisit.plannedArrivalAt!, state.university.timezone)} at {formatTime(upcomingVisit.plannedArrivalAt!, state.university.timezone)}</small></div></div>
+        <label className="visit-management__field">New arrival date and time<input type="datetime-local" min={toLocalDateTimeInput(state.now)} value={rescheduledArrival} onChange={(event) => setRescheduledArrival(event.target.value)} /></label>
+        <p className="visit-management__note">Rescheduling updates your planned contribution in the old and new forecast windows.</p>
+        <div className="visit-management__actions"><Button variant="ghost" onClick={closePlanManager}>Keep current time</Button><Button disabled={!canSaveReschedule} onClick={handleReschedule}>Save new time <CalendarClock size={17} /></Button></div>
+        <button type="button" className="visit-management__cancel" onClick={() => setManagePlanView('cancel')}><CalendarX2 aria-hidden="true" /><span><strong>Cancel this {upcomingVisitType}</strong><small>Remove it from your plans and CampusFit forecasts.</small></span><ChevronRight aria-hidden="true" /></button>
+      </div> : null}
+      {upcomingVisit && upcomingFacility && managePlanView === 'cancel' ? <div className="visit-cancel-confirmation">
+        <span className="visit-cancel-confirmation__icon" aria-hidden="true"><CalendarX2 /></span>
+        <div className="visit-cancel-confirmation__summary"><strong>{upcomingFacility.shortName}</strong><span>{formatDate(upcomingVisit.plannedArrivalAt!, state.university.timezone)} at {formatTime(upcomingVisit.plannedArrivalAt!, state.university.timezone)}</span><small>{upcomingVisitPurpose}</small></div>
+        <p>Your planned visit will no longer contribute to scheduled participation or demand estimates.</p>
+        <div className="visit-management__actions"><Button variant="ghost" onClick={() => setManagePlanView('reschedule')}>Keep {upcomingVisitType}</Button><Button variant="danger" onClick={handleCancelPlan}>Yes, cancel {upcomingVisitType}</Button></div>
+      </div> : null}
+    </Modal>
   </div>;
 }

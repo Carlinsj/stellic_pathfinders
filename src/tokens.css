@@ -1,0 +1,118 @@
+:root {
+  color-scheme: light;
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #1f1b24;
+  background: #f7f6f9;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+
+  /* Typography */
+  --font-sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-editorial: Georgia, "Times New Roman", serif;
+  --text-xs: .75rem;
+  --text-sm: .8125rem;
+  --text-md: .9375rem;
+  --text-lg: 1.0625rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.625rem;
+  --text-3xl: clamp(2rem, 4vw, 3.35rem);
+  --leading-tight: 1.12;
+  --leading-body: 1.55;
+  --tracking-tight: -.035em;
+  --tracking-label: .1em;
+
+  /* Semantic color roles */
+  --color-page: #f7f6f9;
+  --color-page-deep: #efedf3;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-surface-subtle: #f4f1f6;
+  --color-surface-muted: #ece8ef;
+  --color-text: #1f1b24;
+  --color-text-secondary: #48414e;
+  --color-text-muted: #655d6b;
+  --color-text-inverse: #ffffff;
+  --color-border: #ded8e3;
+  --color-border-strong: #cec5d3;
+  --color-border-interactive: #aa9eae;
+  --color-accent: var(--tenant-primary, #57068c);
+  --color-accent-hover: #43056d;
+  --color-accent-soft: var(--tenant-secondary, #f0e8f5);
+  --color-accent-wash: #faf7fc;
+  --color-accent-contrast: #ffffff;
+  --color-focus: #8f4ab7;
+  --color-success: #2f6750;
+  --color-success-bg: #dcebe3;
+  --color-warning: #68490c;
+  --color-warning-bg: #f7ecd3;
+  --color-danger: #923f38;
+  --color-danger-hover: #78322d;
+  --color-danger-bg: #f5ddd8;
+  --color-neutral-bg: #ece9ec;
+  --color-neutral-text: #625d66;
+  --color-dark-surface: #251d2b;
+
+  /* Four-pixel spacing grid */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Shape and elevation */
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 30px;
+  --radius-full: 999px;
+  --shadow-low: 0 1px 2px rgba(30, 24, 36, .05), 0 6px 18px rgba(42, 31, 48, .04);
+  --shadow-medium: 0 14px 38px rgba(42, 31, 48, .09);
+  --shadow-high: 0 24px 72px rgba(31, 24, 36, .16);
+
+  /* Layout */
+  --container-narrow: 920px;
+  --container-app: 1120px;
+  --container-marketing: 1180px;
+  --container-wide: 1260px;
+  --page-gutter: clamp(14px, 4vw, 48px);
+  --control-min-height: 44px;
+
+  /* Interaction */
+  --duration-fast: 100ms;
+  --duration-standard: 160ms;
+  --duration-deliberate: 240ms;
+  --ease-standard: cubic-bezier(.25, .46, .45, .94);
+
+  /* Compatibility aliases while existing pages migrate to semantic roles. */
+  --ink: var(--color-text);
+  --ink-soft: var(--color-text-secondary);
+  --muted: var(--color-text-muted);
+  --paper: var(--color-page);
+  --paper-deep: var(--color-page-deep);
+  --card: var(--color-surface);
+  --line: var(--color-border);
+  --line-strong: var(--color-border-strong);
+  --violet: var(--color-accent);
+  --violet-deep: var(--color-accent-hover);
+  --violet-soft: var(--color-accent-soft);
+  --violet-wash: var(--color-accent-wash);
+  --forest: var(--color-dark-surface);
+  --sage: var(--color-neutral-bg);
+  --gold: #f2c66d;
+  --mint: var(--color-success-bg);
+  --mint-ink: var(--color-success);
+  --amber: var(--color-warning-bg);
+  --amber-ink: var(--color-warning);
+  --danger: var(--color-danger);
+  --shadow-sm: var(--shadow-low);
+  --shadow: var(--shadow-medium);
+  --radius: var(--radius-lg);
+}

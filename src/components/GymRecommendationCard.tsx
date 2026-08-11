@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import type { DemoState, FacilityRecommendation } from '../domain/types';
 import { crowdLabel } from '../lib/format';
 import { getLiveAggregate } from '../services/liveAggregation';
-import { DataSourceLabel, StatusPill } from './ui';
+import { ForecastEstimate, StatusPill } from './ui';
+import { FacilityActivityList, FacilityAvailability } from './FacilityPresentation';
 
 const rankingLabel = (recommendation: FacilityRecommendation, index: number): string => {
   if (!recommendation.eligible) return 'Not recommended';
@@ -20,15 +21,17 @@ export function GymRecommendationCard({ state, tenant, recommendation, index }: 
   return <article className={`gym-recommendation-card ${!recommendation.eligible ? 'gym-recommendation-card--disabled' : ''}`}>
     <div className="gym-rank"><span>{index + 1}</span><strong>{label}</strong></div>
     <div className="gym-recommendation-main">
-      <div className="gym-recommendation-heading"><div><h2>{recommendation.facility.shortName}</h2><p><MapPin />{recommendation.facility.travelMinutes} min away</p></div><StatusPill level={recommendation.eligible ? recommendation.forecast.crowdLevel : 'unknown'}>{recommendation.eligible ? crowdLabel(recommendation.forecast.crowdLevel) : 'Unavailable'}</StatusPill></div>
+      <div className="gym-recommendation-heading"><div><h2>{recommendation.facility.shortName}</h2><p><MapPin />{recommendation.facility.travelMinutes} min away · {recommendation.facility.address}</p></div><StatusPill level={recommendation.eligible ? recommendation.forecast.crowdLevel : 'unknown'}>{recommendation.eligible ? `${crowdLabel(recommendation.forecast.crowdLevel)} expected` : 'Unavailable'}</StatusPill></div>
+      <FacilityAvailability facility={recommendation.facility} at={state.now} />
       <p className="gym-ranking-reason"><Sparkles />{recommendation.explanation}</p>
+      <FacilityActivityList activityKeys={recommendation.facility.activities} />
       <div className="gym-comparison-metrics">
         <span><UsersRound /><strong>{aggregate.campusFitCheckIns}</strong><small>CampusFit check-ins</small></span>
         <span><Clock3 /><strong>{recommendation.duration.durationRange[0]}–{recommendation.duration.durationRange[1]} min</strong><small>Estimated workout</small></span>
         <span><Dumbbell /><strong>{topDemand ? crowdLabel(topDemand.demandLevel) : 'Unknown'}</strong><small>{topDemand?.displayName ?? 'Equipment demand'}</small></span>
       </div>
-      <DataSourceLabel>CampusFit prediction · {recommendation.forecast.expectedRange[0]}–{recommendation.forecast.expectedRange[1]} range · {recommendation.forecast.confidence} confidence</DataSourceLabel>
+      <ForecastEstimate forecast={recommendation.forecast} compact />
     </div>
-    <Link className="gym-card-action" to={`/${tenant}/facilities/${recommendation.facility.id}`}>See details <ArrowRight /></Link>
+    <Link className="gym-card-action" to={`/${tenant}/facilities/${recommendation.facility.id}`}>View details <ArrowRight /></Link>
   </article>;
 }
