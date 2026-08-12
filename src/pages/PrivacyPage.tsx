@@ -17,7 +17,7 @@ export function PrivacyPage() {
       <article className="policy-content">
         <section><h2>1. Scope</h2><p>CampusFit is a competition prototype, not an NYU-operated production service. It uses deterministic synthetic people, visits, facility conditions, and forecasts to demonstrate a campus recreation planning experience. No university sign-on, official occupancy system, or production student database is connected.</p></section>
 
-        <section><h2>2. Information handled by this demo</h2><p>When you use the prototype, you may select a synthetic demo account and create synthetic plans, check-ins, workout focuses, activity choices, and staff scenarios. These actions update the demo state in your current browser session. The selected synthetic account identifier is kept in browser <code>sessionStorage</code> so navigation works during that tab’s session.</p></section>
+        <section><h2>2. Information handled by this demo</h2><p>When you use the prototype, you may select a synthetic demo account and create synthetic plans, check-ins, workout focuses, activity choices, and staff scenarios. Shared synthetic activity is stored in browser <code>localStorage</code> and synchronized across CampusFit tabs on the same origin. Each tab keeps its selected synthetic account separately in <code>sessionStorage</code>.</p></section>
 
         <section><h2>3. How information is used</h2><p>Demo inputs are used only to operate the prototype: showing recommendations, estimating demand ranges, walking through visit lifecycles, and demonstrating role-specific screens. CampusFit check-ins are voluntary participation signals and are never described as total or official facility occupancy.</p></section>
 
