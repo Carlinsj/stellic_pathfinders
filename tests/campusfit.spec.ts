@@ -19,6 +19,10 @@ test('public landing explains sources and privacy', async ({ page }) => {
   await expect(page.locator('#main-content')).toBeFocused();
   await expect(page.getByRole('heading', { name: /Know where and when/i })).toBeVisible();
   await expect(page.getByText(/All demonstration data is synthetic/i)).toBeVisible();
+  await page.locator('#project-story').scrollIntoViewIfNeeded();
+  await expect(page.getByRole('heading', { name: /A clearer answer before the walk to the gym/i })).toBeVisible();
+  await expect(page.getByText(/Voluntary check-ins are never labeled official occupancy/i)).toBeVisible();
+  await expect(page.getByRole('link', { name: /Try the student flow/i })).toHaveAttribute('href', '/nyu/login');
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'http://127.0.0.1:5173/');
   await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', 'http://127.0.0.1:5173/social-card.png');
   expect(await page.locator('script[type="application/ld+json"]').textContent()).toContain('WebApplication');

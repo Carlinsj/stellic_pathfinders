@@ -1,10 +1,10 @@
-import { ArrowRight, BarChart3, Clock3, Dumbbell, GraduationCap, ShieldCheck, Sparkles, UsersRound } from 'lucide-react';
+import { ArrowRight, BarChart3, CheckCircle2, Clock3, Code2, Dumbbell, GraduationCap, ShieldCheck, Sparkles, UsersRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Brand } from '../components/Brand';
 
 export function LandingPage() {
   return <div className="landing-page">
-    <header className="landing-header"><Brand /><nav aria-label="Landing navigation"><a href="#how-it-works">How it works</a><a href="#privacy">Privacy approach</a><Link to="/nyu/staff-login">Staff access</Link><Link className="button button--secondary button--small" to="/nyu/login">Open student demo</Link></nav></header>
+    <header className="landing-header"><Brand /><nav aria-label="Landing navigation"><a href="#project-story">Project story</a><a href="#how-it-works">How it works</a><a href="#privacy">Privacy approach</a><Link to="/nyu/staff-login">Staff access</Link><Link className="button button--secondary button--small" to="/nyu/login">Open student demo</Link></nav></header>
     <main id="main-content" tabIndex={-1}>
       <section className="landing-hero">
         <div className="hero-copy"><span className="kicker"><Sparkles size={14} />Built for the rhythm of NYU</span><h1>Know where and when to <em>work out.</em></h1><p>CampusFit turns NYU facility resources, live participation, student plans, and historical patterns into workout-specific guidance—before you leave for the gym.</p><div className="hero-actions"><Link className="button button--primary button--large" to="/nyu/login">Explore NYU CampusFit <ArrowRight size={18} /></Link></div><small className="synthetic-note"><span /> NYU competition prototype · All demonstration data is synthetic</small></div>
@@ -16,6 +16,24 @@ export function LandingPage() {
         </div>
       </section>
       <section className="trust-ribbon"><span>Focused on NYU recreation</span><div><b>NYU Athletics</b><b><GraduationCap size={22} /> Four verified facilities</b></div></section>
+      <section id="project-story" className="project-story-section" aria-labelledby="project-story-title">
+        <div className="project-story-heading">
+          <div><span className="kicker"><Sparkles size={14} />Pathfinders Challenge · Overcoming Obstacles</span><h2 id="project-story-title">A clearer answer before the walk to the gym.</h2></div>
+          <p>CampusFit removes the scheduling and resource uncertainty that makes campus recreation harder to use. It turns scattered facility information and explainable demand signals into one practical student decision.</p>
+        </div>
+        <div className="project-story-grid">
+          <article className="project-story-card project-story-card--problem"><span className="project-story-number">01</span><small>The student problem</small><h3>The wrong trip costs more than time.</h3><p>Between classes, work, and commuting, students cannot afford to cross campus only to find the wrong facility, unavailable equipment, or demand that does not fit their workout.</p></article>
+          <article className="project-story-card project-story-card--solution"><span className="project-story-number">02</span><small>What I built</small><h3>One plan, matched to the workout.</h3><p>Students choose a focus and time window, compare eligible NYU facilities, and receive a recommendation using hours, travel, relevant equipment, outages, expected duration, and demand ranges.</p><Link className="project-story-link" to="/nyu/login">Try the student flow <ArrowRight size={16} /></Link></article>
+          <article className="project-story-card project-story-card--audience"><span className="project-story-number">03</span><small>Who it is for</small><h3>Students fitting movement into a full day.</h3><p>CampusFit is designed for commuters, students with jobs, and anyone trying to make a realistic recreation plan between campus commitments—not optimize every minute of their life.</p></article>
+          <article className="project-story-card project-story-card--trust"><span className="project-story-number">04</span><small>Built to be honest</small><h3>Guidance without false precision.</h3><ul><li><CheckCircle2 />Ranges, confidence, freshness, and sources stay visible</li><li><CheckCircle2 />Voluntary check-ins are never labeled official occupancy</li><li><CheckCircle2 />Student activity stays aggregate and privacy-protected</li></ul></article>
+        </div>
+        <div className="project-proof" aria-label="CampusFit project proof points">
+          <div><strong>4</strong><span>verified NYU recreation facilities</span></div>
+          <div><strong>0</strong><span>public attendance lists or location tracking</span></div>
+          <div><strong>1</strong><span>explainable recommendation for the student</span></div>
+          <div className="project-stack"><span><Code2 size={16} />Built and tested with</span><p>React · TypeScript · Vite · Supabase model · Vitest · Playwright</p></div>
+        </div>
+      </section>
       <section id="how-it-works" className="feature-section"><div className="section-heading"><span className="kicker">Not just “busy”</span><h2>The right gym depends on <em>your workout.</em></h2><p>A moderate crowd can still mean a frustrating back day. CampusFit translates facility demand into the equipment and activities you actually need.</p></div><div className="feature-grid">
         <article><span className="feature-number">01</span><BarChart3 /><h3>See demand clearly</h3><p>Live CampusFit participation stays distinct from predicted and historical demand.</p></article>
         <article className="feature-card--dark"><span className="feature-number">02</span><Dumbbell /><h3>Plan around your visit</h3><p>Compare cable and rack demand for workouts—or court, pool, wall, studio, and activity demand on its own.</p></article>
