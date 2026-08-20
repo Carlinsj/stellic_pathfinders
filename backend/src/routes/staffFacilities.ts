@@ -85,8 +85,11 @@ export const staffFacilityRoutes: FastifyPluginAsync = async (app) => {
         });
         if (result.error) request.log.error(result.error);
       } else {
-        await db.from('equipment_outages').update({ resolved_at: now, status: 'resolved' })
-          .eq('facility_equipment_id', inventory.id).is('resolved_at', null);
+        await db.from('equipment_outages')
+          .update({ resolved_at: now, status: 'resolved' })
+          .eq('university_id', university.id)
+          .eq('facility_equipment_id', inventory.id)
+          .is('resolved_at', null);
       }
 
       const { data: forecasts } = await db.from('equipment_demand_forecasts').select('*')

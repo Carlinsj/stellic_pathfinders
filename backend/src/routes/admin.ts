@@ -9,9 +9,7 @@ import {
   AuthenticationError,
 } from '../plugins/auth.js';
 
-import {
-  createUserSupabase,
-} from '../plugins/supabase.js';
+import { supabaseAdmin } from '../plugins/supabase.js';
 
 import {
   requireTenantAccess,
@@ -77,13 +75,9 @@ export const adminRoutes:
               request.body,
             );
 
-          const { token, user } =
-            await authenticateRequest(
-              request,
-            );
+          const { user } = await authenticateRequest(request);
 
-          const db =
-            createUserSupabase(token);
+          const db = supabaseAdmin;
 
           const {
             university,
@@ -93,6 +87,7 @@ export const adminRoutes:
               db,
               user.id,
               tenant,
+              user.universityId,
             );
 
           requireRole(

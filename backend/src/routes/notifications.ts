@@ -6,7 +6,7 @@ import {
   AuthenticationError,
 } from '../plugins/auth.js';
 
-import { createUserSupabase } from '../plugins/supabase.js';
+import { supabaseAdmin } from '../plugins/supabase.js';
 import { requireTenantAccess } from '../services/tenantAccess.js';
 
 const tenantParamsSchema = z.object({
@@ -36,17 +36,16 @@ export const notificationRoutes: FastifyPluginAsync =
               request.params,
             );
 
-          const { token, user } =
-            await authenticateRequest(request);
+          const { user } = await authenticateRequest(request);
 
-          const db =
-            createUserSupabase(token);
+          const db = supabaseAdmin;
 
           const { university } =
             await requireTenantAccess(
               db,
               user.id,
               tenant,
+              user.universityId,
             );
 
           const {
@@ -126,17 +125,16 @@ export const notificationRoutes: FastifyPluginAsync =
               request.body,
             );
 
-          const { token, user } =
-            await authenticateRequest(request);
+          const { user } = await authenticateRequest(request);
 
-          const db =
-            createUserSupabase(token);
+          const db = supabaseAdmin;
 
           const { university } =
             await requireTenantAccess(
               db,
               user.id,
               tenant,
+              user.universityId,
             );
 
           const { data: notification } =
@@ -178,6 +176,7 @@ export const notificationRoutes: FastifyPluginAsync =
                 read_at: now,
               })
               .eq('id', notificationId)
+              .eq('university_id', university.id)
               .eq('user_id', user.id)
               .select('*')
               .single();

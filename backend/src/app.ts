@@ -5,6 +5,7 @@ import { env } from './config/env.js';
 
 import { healthRoutes } from './routes/health.js';
 import { demoAuthRoutes } from './routes/demoAuth.js';
+import { sessionRoutes } from './routes/session.js';
 import { bootstrapRoutes } from './routes/bootstrap.js';
 import { facilityRoutes } from './routes/facilities.js';
 import { participationRoutes } from './routes/participation.js';
@@ -29,6 +30,10 @@ export function buildApp() {
   });
 
   app.register(demoAuthRoutes, {
+    prefix: '/api/v1',
+  });
+
+  app.register(sessionRoutes, {
     prefix: '/api/v1',
   });
 

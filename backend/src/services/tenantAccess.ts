@@ -4,11 +4,13 @@ export async function requireTenantAccess(
   supabase: SupabaseClient,
   userId: string,
   tenantSlug: string,
+  expectedUniversityId: string,
 ) {
   const { data: university, error: universityError } = await supabase
     .from('universities')
     .select('*')
     .eq('slug', tenantSlug)
+    .eq('id', expectedUniversityId)
     .eq('active', true)
     .single();
 

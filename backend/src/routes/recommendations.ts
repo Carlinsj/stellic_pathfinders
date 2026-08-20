@@ -6,7 +6,7 @@ import {
   AuthenticationError,
 } from '../plugins/auth.js';
 
-import { createUserSupabase } from '../plugins/supabase.js';
+import { supabaseAdmin } from '../plugins/supabase.js';
 import { requireTenantAccess } from '../services/tenantAccess.js';
 
 const paramsSchema = z.object({
@@ -93,16 +93,16 @@ export const recommendationRoutes: FastifyPluginAsync =
             query.equipmentNeeds,
           );
 
-          const { token, user } =
-            await authenticateRequest(request);
+          const { user } = await authenticateRequest(request);
 
-          const db = createUserSupabase(token);
+          const db = supabaseAdmin;
 
           const { university } =
             await requireTenantAccess(
               db,
               user.id,
               tenant,
+              user.universityId,
             );
 
           /*

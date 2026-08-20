@@ -22,19 +22,3 @@ export const supabaseAdmin = createClient(
     auth: authOptions,
   },
 );
-
-export function createUserSupabase(accessToken: string) {
-  return createClient(
-    env.SUPABASE_URL,
-    env.SUPABASE_PUBLISHABLE_KEY,
-    {
-      auth: authOptions,
-
-      global: {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      },
-    },
-  );
-}

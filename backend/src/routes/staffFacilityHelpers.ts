@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 
 import { authenticateRequest, AuthenticationError } from '../plugins/auth.js';
-import { createUserSupabase } from '../plugins/supabase.js';
+import { supabaseAdmin } from '../plugins/supabase.js';
 import { requireRole } from '../services/authorization.js';
 import { requireTenantAccess } from '../services/tenantAccess.js';
 
@@ -36,9 +36,9 @@ export const equipmentUpdateSchema = z.object({
 });
 
 export async function requireStaffContext(request: FastifyRequest, tenant: string) {
-  const { token, user } = await authenticateRequest(request);
-  const db = createUserSupabase(token);
-  const { university, profile } = await requireTenantAccess(db, user.id, tenant);
+  const { user } = await authenticateRequest(request);
+  const db = supabaseAdmin;
+  const { university, profile } = await requireTenantAccess(db, user.id, tenant, user.universityId);
   requireRole(profile.role, [...staffRoles]);
   return { db, university, user };
 }

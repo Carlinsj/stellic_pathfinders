@@ -1,13 +1,8 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
-import {
-  authenticateRequest,
-  AuthenticationError,
-} from '../plugins/auth.js';
-
-import { createUserSupabase } from '../plugins/supabase.js';
-import { requireTenantAccess } from '../services/tenantAccess.js';
+import { authenticateRequest, AuthenticationError,} from '../plugins/auth.js';
+import { supabaseAdmin } from '../plugins/supabase.js';
 
 const tenantParamsSchema = z.object({
   tenant: z.string().min(1),
@@ -15,7 +10,7 @@ const tenantParamsSchema = z.object({
 
 const facilityParamsSchema = z.object({
   tenant: z.string().min(1),
-  facilityId: z.string().uuid(),
+  facilityId: z.string().min(1),
 });
 
 const querySchema = z.object({
@@ -31,17 +26,32 @@ export const facilityRoutes: FastifyPluginAsync = async (app) => {
 
       querySchema.parse(request.query);
 
-      const { token, user } =
+      const { user } =
         await authenticateRequest(request);
 
-      const db = createUserSupabase(token);
+      const db = supabaseAdmin;
 
-      const { university } =
-        await requireTenantAccess(
-          db,
-          user.id,
-          tenant,
-        );
+      const {
+        data: university,
+        error: universityError,
+      } = await db
+        .from('universities')
+        .select('*')
+        .eq('slug', tenant)
+        .eq('id', user.universityId)
+        .eq('active', true)
+        .maybeSingle();
+
+      if (universityError) {
+        throw universityError;
+      }
+
+      if (!university) {
+        return reply.code(403).send({
+          error: 'TENANT_ACCESS_DENIED',
+          message: 'Tenant access denied',
+        });
+      }
 
       const { data: facilities, error } = await db
         .from('facilities')
@@ -96,17 +106,32 @@ export const facilityRoutes: FastifyPluginAsync = async (app) => {
           .pick({ at: true })
           .parse(request.query);
 
-        const { token, user } =
+        const { user } =
           await authenticateRequest(request);
 
-        const db = createUserSupabase(token);
+        const db = supabaseAdmin;
 
-        const { university } =
-          await requireTenantAccess(
-            db,
-            user.id,
-            tenant,
-          );
+        const {
+          data: university,
+          error: universityError,
+        } = await db
+          .from('universities')
+          .select('*')
+          .eq('slug', tenant)
+          .eq('id', user.universityId)
+          .eq('active', true)
+          .maybeSingle();
+
+        if (universityError) {
+          throw universityError;
+        }
+
+        if (!university) {
+          return reply.code(403).send({
+            error: 'TENANT_ACCESS_DENIED',
+            message: 'Tenant access denied',
+          });
+        }
 
         const { data: facility, error } = await db
           .from('facilities')

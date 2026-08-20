@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 
 import {
@@ -6,7 +7,7 @@ import {
   AuthenticationError,
 } from '../plugins/auth.js';
 
-import { createUserSupabase } from '../plugins/supabase.js';
+import { supabaseAdmin } from '../plugins/supabase.js';
 import { requireTenantAccess } from '../services/tenantAccess.js';
 
 const tenantSchema = z.object({
@@ -149,11 +150,13 @@ const updateVisitSchema = z.object({
 // Helper functions
 // --------------------
 
+interface IdKey { id: string; key: string }
+
 async function resolveWorkoutFocuses(
-  db: any,
+  db: SupabaseClient,
   universityId: string,
   keys: string[],
-) {
+): Promise<IdKey[]> {
   if (keys.length === 0) {
     return [];
   }
@@ -178,7 +181,7 @@ async function resolveWorkoutFocuses(
 }
 
 async function resolveActivity(
-  db: any,
+  db: SupabaseClient,
   universityId: string,
   key: string,
 ) {
@@ -198,10 +201,10 @@ async function resolveActivity(
 }
 
 async function resolveEquipmentNeeds(
-  db: any,
+  db: SupabaseClient,
   universityId: string,
   keys: string[],
-) {
+): Promise<IdKey[]> {
   if (keys.length === 0) {
     return [];
   }
@@ -251,17 +254,16 @@ export const visitRoutes: FastifyPluginAsync =
           const query =
             querySchema.parse(request.query);
 
-          const { token, user } =
-            await authenticateRequest(request);
+          const { user } = await authenticateRequest(request);
 
-          const db =
-            createUserSupabase(token);
+          const db = supabaseAdmin;
 
           const { university } =
             await requireTenantAccess(
               db,
               user.id,
               tenant,
+              user.universityId,
             );
 
           let databaseQuery = db
@@ -367,17 +369,16 @@ export const visitRoutes: FastifyPluginAsync =
               request.body,
             );
 
-          const { token, user } =
-            await authenticateRequest(request);
+          const { user } = await authenticateRequest(request);
 
-          const db =
-            createUserSupabase(token);
+          const db = supabaseAdmin;
 
           const { university } =
             await requireTenantAccess(
               db,
               user.id,
               tenant,
+              user.universityId,
             );
 
           /*
@@ -623,17 +624,16 @@ export const visitRoutes: FastifyPluginAsync =
               request.body,
             );
 
-          const { token, user } =
-            await authenticateRequest(request);
+          const { user } = await authenticateRequest(request);
 
-          const db =
-            createUserSupabase(token);
+          const db = supabaseAdmin;
 
           const { university } =
             await requireTenantAccess(
               db,
               user.id,
               tenant,
+              user.universityId,
             );
 
           const {
@@ -918,14 +918,10 @@ export const visitRoutes: FastifyPluginAsync =
                 null;
 
               await db
-                .from(
-                  'visit_secondary_focuses',
-                )
+                .from('visit_secondary_focuses')
                 .delete()
-                .eq(
-                  'visit_id',
-                  visitId,
-                );
+                .eq('visit_id', visitId)
+                .eq('university_id', university.id);
 
               if (
                 focuses.length > 1
@@ -980,14 +976,10 @@ export const visitRoutes: FastifyPluginAsync =
                 null;
 
               await db
-                .from(
-                  'visit_secondary_focuses',
-                )
+                .from('visit_secondary_focuses')
                 .delete()
-                .eq(
-                  'visit_id',
-                  visitId,
-                );
+                .eq('visit_id', visitId)
+                .eq('university_id', university.id);
 
               break;
             }
@@ -1003,6 +995,7 @@ export const visitRoutes: FastifyPluginAsync =
             .from('visits')
             .update(updates)
             .eq('id', visitId)
+            .eq('university_id', university.id)
             .eq('user_id', user.id)
             .select('*')
             .single();
@@ -1094,17 +1087,16 @@ export const visitRoutes: FastifyPluginAsync =
               request.params,
             );
 
-          const { token, user } =
-            await authenticateRequest(request);
+          const { user } = await authenticateRequest(request);
 
-          const db =
-            createUserSupabase(token);
+          const db = supabaseAdmin;
 
           const { university } =
             await requireTenantAccess(
               db,
               user.id,
               tenant,
+              user.universityId,
             );
 
           const {
@@ -1135,6 +1127,7 @@ export const visitRoutes: FastifyPluginAsync =
             .from('visits')
             .delete()
             .eq('id', visitId)
+            .eq('university_id', university.id)
             .eq('user_id', user.id);
 
           if (error) {
