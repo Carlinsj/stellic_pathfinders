@@ -130,7 +130,7 @@ University administrators can use the staff workspace and additionally open tena
 
 | Layer | Implementation |
 | --- | --- |
-| Frontend | React 19, TypeScript, React Router, TanStack Query |
+| Frontend | React 19, TypeScript, React Router, Lucide React |
 | Build and PWA | Vite 7, `vite-plugin-pwa` |
 | API | Fastify 5, Zod, JWT demo sessions |
 | Persistence | Supabase Postgres, row-level security, aggregate RPCs |
@@ -192,6 +192,14 @@ Two additional frontend variables control API routing:
 | `VITE_API_PROXY_TARGET` | `http://127.0.0.1:3001` | Vite development proxy target for `/api`. |
 
 Only variables prefixed with `VITE_` are exposed to the browser. Never place Supabase secrets, JWT secrets, or internal job credentials in a `VITE_` variable.
+
+### Deployment status and retained integration seams
+
+The local and remote data paths are both intentional. Local mode is the self-contained competition demo and browser-test environment. Remote mode is an implemented Fastify and Supabase path for a privately hosted or university-managed deployment; it is not a placeholder, but it requires a configured Supabase project, server-side secrets, and deployment infrastructure that are not bundled with this repository.
+
+The authentication-mode selector in the administrator screen is a preview of the tenant setting only. OIDC and SAML are explicit future integration seams: CampusFit does not currently connect to NYU SSO, and a production or on-premises deployment must replace demo JWT sessions with university-approved authentication and identity provisioning.
+
+PWA support is active in production builds. The development-only service-worker reset in `src/main.tsx` and `vite.config.ts` prevents an older installed build from caching local development assets; it is cleanup code, not production authentication or deployment logic.
 
 ## Run with Fastify and Supabase
 
