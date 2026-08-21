@@ -6,6 +6,7 @@ import { getActiveVisitTiming } from '../services/visitReminders';
 import { campusFitApi, CampusFitApiError } from '../services/campusFitApi';
 import { applyDemoAction, type DemoAction } from '../services/demoOperations';
 import { mergeFacilityParticipationTrackers } from '../services/participationTracker';
+import { resolveTenantSignInAccount } from '../services/accessControl';
 
 interface ToastMessage { id: number; message: string; tone: 'success' | 'info' | 'warning' }
 
@@ -291,9 +292,13 @@ export function CampusFitProvider({ children }: { children: ReactNode }) {
 
   const signInAs = useCallback(async (tenant: TenantSlug, user: UserProfile) => {
     const sessionGeneration = ++sessionGenerationRef.current[tenant];
+    const tenantAccount = resolveTenantSignInAccount(
+      user,
+      accounts[tenant],
+      statesRef.current[tenant].university.id,
+    );
     const localAccount = demoAccounts[tenant].find((account) => account.email === user.email || account.id === user.id);
-    const immediateUser = localAccount ?? user;
-    if (immediateUser.universityId !== statesRef.current[tenant].university.id) throw new Error('Cross-tenant sign-in denied');
+    const immediateUser = localAccount ?? tenantAccount;
 
     // The bundled tenant state is ready synchronously, so route immediately and
     // replace it with authoritative API data once the background session is ready.
@@ -325,7 +330,7 @@ export function CampusFitProvider({ children }: { children: ReactNode }) {
         setBackendStatus('local');
         notify(error instanceof CampusFitApiError ? 'Backend unavailable — continuing with the local deterministic demo' : 'Could not start the backend session — using local demo data', 'warning');
       });
-  }, [notify, refreshTenantFromApi, replaceTenantState]);
+  }, [accounts, notify, refreshTenantFromApi, replaceTenantState]);
 
   const signOut = useCallback(async (tenant: TenantSlug) => {
     sessionGenerationRef.current[tenant] += 1;

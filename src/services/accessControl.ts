@@ -1,4 +1,4 @@
-import type { Role } from '../domain/types';
+import type { Role, UserProfile } from '../domain/types';
 
 export type AccessArea = 'student' | 'staff' | 'admin' | 'demo';
 
@@ -30,4 +30,22 @@ export const defaultRouteForRole = (role: Role): string => {
   if (role === 'recreation_staff') return 'staff';
   if (role === 'demo_admin') return 'demo';
   return 'admin';
+};
+
+export const resolveTenantSignInAccount = (
+  selectedAccount: UserProfile,
+  tenantAccounts: readonly UserProfile[],
+  activeUniversityId: string,
+): UserProfile => {
+  const tenantAccount = tenantAccounts.find((account) =>
+    account.id === selectedAccount.id &&
+    account.universityId === selectedAccount.universityId
+  );
+  if (!tenantAccount) throw new Error('Cross-tenant sign-in denied');
+
+  // API-backed profiles use the database university UUID while the optimistic
+  // local repository uses its deterministic university ID. Membership in the
+  // tenant-scoped account response is the client-side boundary; the API repeats
+  // the authoritative university check when it creates the session.
+  return { ...tenantAccount, universityId: activeUniversityId };
 };
