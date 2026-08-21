@@ -47,6 +47,7 @@ export interface Facility {
 
 export interface EquipmentType {
   id: string;
+  backendId?: string;
   key: string;
   displayName: string;
   category: string;
@@ -139,6 +140,15 @@ export interface FacilityParticipationTracker {
   officialOccupancyConnected: false;
 }
 
+export interface DemoStatus {
+  universityId: string;
+  activeCheckIns: number;
+  futurePlans: number;
+  hasPlannedVisit: boolean;
+  hasSyntheticActiveVisit: boolean;
+  updatedAt: string;
+}
+
 export interface Forecast {
   facilityId: string;
   intervalStart: string;
@@ -200,5 +210,8 @@ export interface DemoState {
   facilityEquipment: FacilityEquipment[];
   visits: Visit[];
   history: VisitHistoryEntry[];
+  participationTrackers?: FacilityParticipationTracker[];
+  demoStatus?: DemoStatus;
+  dataSource?: 'local' | 'api';
   now: string;
 }

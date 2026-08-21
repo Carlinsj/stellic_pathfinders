@@ -4,7 +4,7 @@ import type { DemoState, Facility } from '../domain/types';
 import { getLiveAggregate } from '../services/liveAggregation';
 import { forecastDemand } from '../services/forecasting';
 import { calculateEquipmentDemand } from '../services/equipmentDemand';
-import { crowdLabel, formatTime } from '../lib/format';
+import { campusFitCheckInText, crowdLabel, formatTime } from '../lib/format';
 import { titleCase } from '../data/catalog';
 import { FacilityActivityList, FacilityAvailability } from './FacilityPresentation';
 import { ForecastEstimate, StatusPill } from './ui';
@@ -22,7 +22,7 @@ export function FacilityCard({ state, facility, tenant, compact = false }: { sta
     : 'Now';
   return <article className={`facility-card ${compact ? 'facility-card--compact' : ''}`}>
     <div className="facility-card__top"><div className="facility-monogram" aria-hidden="true">{facility.shortName.slice(0, 2).toUpperCase()}</div><FacilityAvailability facility={facility} at={state.now} /></div>
-    <div className="facility-card__content"><p className="eyebrow"><MapPin size={13} />{facility.travelMinutes} min away · {facility.address}</p><h3>{facility.shortName}</h3>{compact ? null : <p>{facility.description}</p>}<div className="facility-card__status"><StatusPill level={forecast.crowdLevel}>{crowdLabel(forecast.crowdLevel)} expected</StatusPill><span><UsersRound />{aggregate.campusFitCheckIns} CampusFit users checked in</span></div></div>
+    <div className="facility-card__content"><p className="eyebrow"><MapPin size={13} />{facility.travelMinutes} min away · {facility.address}</p><h3>{facility.shortName}</h3>{compact ? null : <p>{facility.description}</p>}<div className="facility-card__status"><StatusPill level={forecast.crowdLevel}>{crowdLabel(forecast.crowdLevel)} expected</StatusPill><span><UsersRound />{campusFitCheckInText(aggregate.campusFitCheckIns)}</span></div></div>
     <FacilityActivityList activityKeys={facility.activities} limit={compact ? 3 : 5} />
     <div className="facility-insights"><span><Dumbbell />{notableActivity}</span><span><Clock3 />Best time: {bestTime}</span></div>
     <p className="facility-demand-note"><strong>{busyEquipment ? `${crowdLabel(busyEquipment.demandLevel)} ${busyEquipment.displayName.toLowerCase()} demand` : 'Equipment demand unknown'}</strong><span>{busyEquipment ? `${busyEquipment.queueRange[0]}–${busyEquipment.queueRange[1]} min likely wait` : 'Official equipment sensors unavailable'}</span></p>

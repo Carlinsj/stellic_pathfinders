@@ -1,5 +1,6 @@
 import type { DemoState, LiveAggregate } from '../domain/types';
 import { titleCase } from '../data/catalog';
+import { getCurrentCampusFitCheckIns } from './activeCheckIns';
 import { getVisitWorkoutFocuses } from './workoutFocus';
 
 const crowdFromParticipation = (count: number, capacity: number): LiveAggregate['crowdLevel'] => {
@@ -25,16 +26,21 @@ const aggregateCategory = (
 export const getLiveAggregate = (state: DemoState, facilityId: string): LiveAggregate => {
   const facility = state.facilities.find((item) => item.id === facilityId);
   if (!facility) throw new Error('Facility not found in tenant');
-  const active = state.visits.filter((visit) => visit.facilityId === facilityId && visit.status === 'checked_in');
+  const active = getCurrentCampusFitCheckIns(state, facilityId);
+  const tracker = state.participationTrackers?.find((item) =>
+    item.facilityId === facilityId &&
+    Date.parse(state.now) >= Date.parse(item.intervalStart) &&
+    Date.parse(state.now) < Date.parse(item.intervalEnd));
+  const campusFitCheckIns = tracker?.campusFitCheckIns ?? active.length;
   return {
     facilityId,
-    campusFitCheckIns: active.length,
-    crowdLevel: crowdFromParticipation(active.length, facility.capacity),
-    confidence: active.length >= 12 ? 'medium' : 'low',
+    campusFitCheckIns,
+    crowdLevel: crowdFromParticipation(campusFitCheckIns, facility.capacity),
+    confidence: tracker?.confidence ?? (active.length >= 12 ? 'medium' : 'low'),
     focusCounts: aggregateCategory(active.flatMap((visit) => visit.intent === 'workout' ? getVisitWorkoutFocuses(visit) : []), state.university.privacyCountThreshold),
     activityCounts: aggregateCategory(active.flatMap((visit) => visit.activity ? [visit.activity] : []), state.university.privacyCountThreshold),
-    updatedAt: state.now,
-    sourceExplanation: 'Live CampusFit participation combined with synthetic historical patterns. This is not official occupancy.',
+    updatedAt: tracker?.updatedAt ?? state.now,
+    sourceExplanation: tracker?.sourceExplanation ?? 'Live totals count current, voluntary CampusFit check-ins only. This is not official occupancy.',
     discountedAutoClosed: state.visits.filter((visit) => visit.facilityId === facilityId && visit.status === 'auto_closed').length
   };
 };

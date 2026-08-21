@@ -73,6 +73,16 @@ function normalizeArray(
     .filter(Boolean);
 }
 
+interface FacilityActivityJoin {
+  availability: string;
+  activities?: { key?: string } | null;
+}
+
+interface FacilityEquipmentJoin {
+  operational_quantity: number;
+  equipment_types?: { key?: string } | null;
+}
+
 export const recommendationRoutes: FastifyPluginAsync =
   async (app) => {
     app.get(
@@ -170,7 +180,7 @@ export const recommendationRoutes: FastifyPluginAsync =
           ) {
             eligible = eligible.filter((facility) =>
               facility.facility_activities?.some(
-                (item: any) =>
+                (item: FacilityActivityJoin) =>
                   item.activities?.key ===
                     query.activity &&
                   item.availability !==
@@ -188,7 +198,7 @@ export const recommendationRoutes: FastifyPluginAsync =
                 equipmentNeeds.every(
                   (equipmentKey) =>
                     facility.facility_equipment?.some(
-                      (item: any) =>
+                      (item: FacilityEquipmentJoin) =>
                         item.equipment_types?.key ===
                           equipmentKey &&
                         item.operational_quantity > 0,

@@ -7,6 +7,7 @@ import {
 } from '../plugins/auth.js';
 
 import { supabaseAdmin } from '../plugins/supabase.js';
+import { autoCloseElapsedVisits } from '../services/visitLifecycle.js';
 
 const paramsSchema = z.object({
   tenant: z.string().min(1),
@@ -83,6 +84,11 @@ export const participationRoutes: FastifyPluginAsync = async (app) => {
 
         const requestedAt =
           at ?? new Date().toISOString();
+
+        await autoCloseElapsedVisits(db, {
+          universityId: university.id,
+          facilityId,
+        });
 
         const {
           data,

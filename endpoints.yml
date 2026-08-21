@@ -3,7 +3,7 @@ contract:
   status: required-production-contract
   basePath: /api/v1
   notes:
-    - The current competition build uses deterministic in-memory repositories; these routes describe the tenant-scoped backend contract required to replace them.
+    - The configured frontend uses this authenticated tenant-scoped API; deterministic local repositories remain available only as a fallback and for isolated tests.
     - Student responses must never expose another student's raw visit, identity, or attendance history.
     - CampusFit check-ins are voluntary product participation and must never be labelled total or official occupancy.
     - All tenant-owned records and responses carry universityId, while the tenant path is validated against the authenticated profile.
@@ -149,7 +149,7 @@ endpoints:
 
   - method: POST
     path: /api/v1/tenants/{tenant}/me/visits
-    description: Plan a future visit or check in immediately, then return the new self-owned visit and refreshed aggregate participation for the affected facility window.
+    description: Plan a future visit or check in immediately, then return the new self-owned visit. Clients refresh aggregate participation from the facility participation endpoint.
     request:
       mode: plan | check_in
       facilityId: string
@@ -175,12 +175,11 @@ endpoints:
         enum: [anonymous_aggregate]
     response:
       visit: Visit
-      participation: FacilityParticipationTracker
     authorization: Authenticated tenant student. Enforce tenant ownership, supported activities, valid workout focuses, and at most one active check-in per student.
 
   - method: PATCH
     path: /api/v1/tenants/{tenant}/me/visits/{visitId}
-    description: Apply one allowed lifecycle or content update to the signed-in student's visit and return refreshed aggregates for every affected facility/time window.
+    description: Apply one allowed lifecycle or content update to the signed-in student's visit. Clients refresh aggregate participation for affected facility/time windows from the participation endpoint.
     request:
       action: reschedule | check_in | complete | extend | cancel | change_facility | change_workout_focuses | change_activity
       plannedArrivalAt:
@@ -207,7 +206,6 @@ endpoints:
         allowedWhen: action is complete
     response:
       visit: Visit
-      participation: FacilityParticipationTracker[]
     authorization: Visit owner only. Planned or delayed visits may be rescheduled, checked in, cancelled, or moved. Active visits may be completed, extended, or have workout/activity details updated. Closed visits never reopen.
 
   - method: DELETE
@@ -331,7 +329,7 @@ endpoints:
 
   - method: POST
     path: /api/v1/tenants/{tenant}/demo/reset
-    description: Replace tenant demo state with its deterministic seed while preserving the authorized demo session.
+    description: Revert audit-tracked demo mutations made by the authorized demo account while preserving the tenant seed data and active demo session.
     response:
       demoStatus: DemoStatus
     authorization: Demo-enabled environment and tenant administrator or platform administrator.

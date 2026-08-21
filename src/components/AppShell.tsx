@@ -41,7 +41,7 @@ export function AppShell() {
   }, [toast, dismissToast]);
 
   const handleSignOut = () => {
-    signOut(tenant);
+    void signOut(tenant);
     navigate(`/${tenant}/${staffPortal ? 'staff-login' : 'login'}`);
   };
 

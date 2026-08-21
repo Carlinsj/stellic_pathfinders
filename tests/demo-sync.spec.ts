@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures';
 
-const campusCheckIns = (page: import('@playwright/test').Page) => page.locator('.student-overview article').filter({ hasText: 'voluntary check-ins' }).locator('strong');
+const campusCheckIns = (page: import('@playwright/test').Page) => page.locator('.student-overview article').filter({ hasText: /currently checked in/ }).locator('strong');
 
 async function checkInAtPalladium(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: 'Check in', exact: true }).click();

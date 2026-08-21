@@ -1,5 +1,5 @@
 import { AlertTriangle, ArrowLeft, ArrowRight, CalendarDays, Check, Clock3, Dumbbell, Info, MapPin, Sparkles, Timer, UsersRound, Wrench } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button, DataLabel, SegmentedControl, StatusPill } from '../components/ui';
 import { VisitPrivacyPicker } from '../components/VisitPrivacyPicker';
@@ -21,7 +21,7 @@ const stepLabels = ['Workout', 'Time', 'Gym', 'Review'];
 
 export function PlanPage() {
   const { tenant, state } = useTenant();
-  const { updateTenant } = useCampusFit();
+  const { updateTenant, refreshParticipation } = useCampusFit();
   const navigate = useNavigate();
   const [search] = useSearchParams();
   const suggestedTime = search.get('time');
@@ -60,6 +60,10 @@ export function PlanPage() {
   const purposeLabel = visitIntent === 'activity'
     ? activities.find((item) => item.key === activity)?.label ?? 'Activity'
     : selectedFocuses.map((key) => workoutFocuses.find((item) => item.key === key)?.label).filter(Boolean).join(' + ') || 'Workout';
+
+  useEffect(() => {
+    void refreshParticipation(tenant, selectedRecommendation.facility.id, arrivalAt);
+  }, [arrivalAt, refreshParticipation, selectedRecommendation.facility.id, tenant]);
 
   const handleIntentChange = (value: string) => {
     const nextIntent = value as VisitIntent;

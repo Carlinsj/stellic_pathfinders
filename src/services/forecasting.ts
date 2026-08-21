@@ -1,4 +1,5 @@
 import type { CrowdLevel, DemoState, Facility, Forecast } from '../domain/types';
+import { getFacilityParticipationTracker } from './participationTracker';
 
 const addMinutes = (iso: string, minutes: number): string =>
   new Date(new Date(iso).getTime() + minutes * 60_000).toISOString();
@@ -60,14 +61,19 @@ export const forecastDemand = (state: DemoState, facilityId: string, at = state.
   const reliableHistorical = state.visits.filter((visit) =>
     visit.facilityId === facilityId && ['completed', 'auto_closed'].includes(visit.status))
     .reduce((sum, visit) => sum + visit.reliabilityWeight, 0);
-  const expected = historicalRatio * facility.capacity + planned.length * 0.7 + active.length * 0.35;
-  const uncertainty = reliableHistorical > 25 ? 0.1 : 0.18;
-  const low = Math.max(active.length, Math.round(expected * (1 - uncertainty)));
-  const high = Math.min(facility.capacity, Math.round(expected * (1 + uncertainty)));
+  const participation = getFacilityParticipationTracker(state, facilityId, at);
+  const hasApiTracker = state.participationTrackers?.includes(participation) ?? false;
+  const activeCount = hasApiTracker ? participation.campusFitCheckIns : active.length;
+  const plannedCount = hasApiTracker ? participation.scheduledNotCheckedIn : planned.length;
+  const historicalLow = hasApiTracker ? participation.typicalVisitorRange[0] : historicalRatio * facility.capacity;
+  const historicalHigh = hasApiTracker ? participation.typicalVisitorRange[1] : historicalRatio * facility.capacity;
+  const uncertainty = reliableHistorical > 25 || participation.confidence === 'medium' ? 0.1 : 0.18;
+  const low = Math.max(activeCount, Math.round((historicalLow + plannedCount * 0.7 + activeCount * 0.35) * (hasApiTracker ? 1 : 1 - uncertainty)));
+  const high = Math.min(facility.capacity, Math.round((historicalHigh + plannedCount * 0.7 + activeCount * 0.35) * (hasApiTracker ? 1 : 1 + uncertainty)));
   const drivers = [
     historicalRatio >= 0.7 ? 'Typical after-class peak' : 'Historical pattern for this time',
-    planned.length > 4 ? `${planned.length} declared future visits` : 'Limited declared plans',
-    active.length > 8 ? 'Current CampusFit participation' : 'Live participation is a smaller signal'
+    plannedCount > 4 ? `${plannedCount} declared future visits` : 'Limited declared plans',
+    activeCount > 8 ? 'Current CampusFit participation' : 'Live participation is a smaller signal'
   ];
   return {
     facilityId,
@@ -75,9 +81,11 @@ export const forecastDemand = (state: DemoState, facilityId: string, at = state.
     intervalEnd,
     expectedRange: [low, high],
     crowdLevel: crowdLevel(((low + high) / 2) / facility.capacity),
-    confidence: reliableHistorical > 60 && planned.length >= 3 ? 'medium' : 'low',
-    sourceExplanation: 'Synthetic historical patterns, declared plans, active CampusFit check-ins, hours, and capacity. No official occupancy feed is connected.',
+    confidence: hasApiTracker ? participation.confidence : reliableHistorical > 60 && planned.length >= 3 ? 'medium' : 'low',
+    sourceExplanation: hasApiTracker
+      ? `${participation.sourceExplanation} Forecast ranges also include facility hours, capacity, and declared plans.`
+      : 'Synthetic historical patterns, declared plans, active CampusFit check-ins, hours, and capacity. No official occupancy feed is connected.',
     drivers,
-    plannedCount: planned.length
+    plannedCount
   };
 };

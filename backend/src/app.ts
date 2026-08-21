@@ -15,6 +15,7 @@ import { notificationRoutes } from './routes/notifications.js';
 import { staffFacilityRoutes } from './routes/staffFacilities.js';
 import { adminRoutes } from './routes/admin.js';
 import { internalJobRoutes } from './routes/internalJobs.js';
+import { demoRoutes } from './routes/demo.js';
 
 export function buildApp() {
   const app = Fastify({
@@ -66,6 +67,10 @@ export function buildApp() {
   });
 
   app.register(adminRoutes, {
+    prefix: '/api/v1',
+  });
+
+  app.register(demoRoutes, {
     prefix: '/api/v1',
   });
 
