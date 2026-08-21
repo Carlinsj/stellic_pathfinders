@@ -34,3 +34,6 @@ export const crowdLabel = (level: string): string => level === 'unknown'
   : level.replace('_', ' ').replace(/\b\w/g, (character) => character.toUpperCase());
 
 export const initials = (name: string): string => name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
+
+export const campusFitCheckInText = (count: number): string =>
+  `${count} ${count === 1 ? 'person' : 'people'} checked in with CampusFit`;

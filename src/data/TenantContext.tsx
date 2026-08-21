@@ -1,5 +1,6 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
+import { LoadingSkeleton } from '../components/ui';
 import type { DemoState, TenantSlug } from '../domain/types';
 import { canAccessArea, defaultRouteForRole, type AccessArea } from '../services/accessControl';
 import { useCampusFit } from './CampusFitContext';
@@ -16,8 +17,13 @@ export function TenantGuard({ children }: { children: ReactNode }) {
 
 export function AuthenticatedGuard({ children }: { children: ReactNode }) {
   const { tenant } = useTenant();
-  const { sessions } = useCampusFit();
+  const { sessions, sessionLoading } = useCampusFit();
   const location = useLocation();
+  if (sessionLoading[tenant]) {
+    return <main id="main-content" className="page" tabIndex={-1}>
+      <LoadingSkeleton rows={5} label="Loading current CampusFit data" />
+    </main>;
+  }
   if (!sessions[tenant]) {
     const staffDestination = /\/(staff|admin|demo)(?:\/|$)/.test(location.pathname);
     return <Navigate to={`/${tenant}/${staffDestination ? 'staff-login' : 'login'}`} replace />;

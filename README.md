@@ -2,7 +2,7 @@
 
 CampusFit is a mobile-first NYU recreation planning prototype. It helps students choose an NYU facility and time for either a workout or a specific activity. Voluntary CampusFit check-ins are always distinguished from planned, historical, predicted, official, and unknown occupancy information.
 
-The competition build is configured exclusively for New York University. All local people, visits, counts, outages, and forecasts are deterministic synthetic data.
+The competition build is configured exclusively for New York University. Demo people, visits, counts, outages, and forecasts are synthetic whether the app is using its local fallback or the Supabase-backed API.
 
 ## Run locally
 
@@ -12,7 +12,7 @@ Requirements: Node.js 20+ and npm 10+.
 npm run dev
 ```
 
-The launcher installs dependencies when they are missing and starts Vite, normally at `http://localhost:5173`. The local demo needs no Supabase project or paid service.
+The launcher installs dependencies when they are missing and starts Vite, normally at `http://localhost:5173`. With a configured root `.env`, it also starts the Fastify API on `http://127.0.0.1:3001`; without one, the frontend keeps using its deterministic local fallback. Use `backend/.env.example` as the server configuration reference. `VITE_API_MODE=local` forces the fallback and `VITE_API_MODE=remote` requires the API.
 
 The frontend's required backend routes are listed in [`endpoints.yml`](endpoints.yml).
 
@@ -40,8 +40,8 @@ npm run test:e2e
 ## Design and data
 
 - React pages and components handle presentation; deterministic rules live in `src/services`.
-- A tenant context loads university configuration and repository state. Every tenant-owned record includes a university identifier.
-- Local deterministic state powers the competition demo. `supabase/migrations` contains the normalized PostgreSQL schema, indexes, RLS policies, and aggregate-access functions for a production implementation.
+- A tenant context loads university configuration and repository state through `src/services/campusFitApi.ts`. Every tenant-owned record includes a university identifier.
+- The Fastify API and Supabase persistence power configured environments; the same frontend can fall back to deterministic local state. `supabase/migrations` contains the normalized PostgreSQL schema, indexes, RLS policies, and aggregate-access functions.
 - Forecasts combine synthetic historical ranges, discounted plans, active CampusFit participation, facility hours, capacity, resource supply, outages, and source reliability. Every result retains a range, confidence, drivers, freshness, and source explanation.
 - Student equipment status is derived from the chosen workout focus and tenant-owned facility inventory. It distinguishes reduced supply from a complete outage without exposing internal staff controls or another student's activity.
 - Recommendations first reject closed facilities or those missing a required activity or operational resource. Eligible options are ranked by crowd range, relevant resource pressure, estimated duration, preference, and travel time.
@@ -69,6 +69,6 @@ The [NYU recreation facility catalog](docs/NYU_FACILITY_CATALOG.md) records NYU 
 
 ## Production path and limitations
 
-The local repository resets to deterministic demo state on refresh or reset. Supabase is modeled but not hosted; demo authentication is not university authentication; updates are local rather than cross-device; and forecast accuracy has not been validated against real recreation data.
+The local fallback resets to deterministic demo state on refresh or reset. A configured Supabase environment persists tenant-scoped visits, staff equipment changes, university settings, and reversible demo operations across clients. Demo JWT authentication is not university authentication, and forecast accuracy has not been validated against real recreation data.
 
-For production, apply the Supabase migrations, replace local repositories with tenant-scoped server operations, connect university-approved OIDC/SAML and data sources, schedule reminder and stale-visit closure jobs, publish narrow realtime invalidations, and configure retention, backups, audit review, rate limits, accessibility checks, and incident response. Secrets belong in deployment configuration, never the client bundle.
+For production, replace demo sessions with university-approved OIDC/SAML, connect authoritative data sources, schedule reminder and stale-visit closure jobs, publish narrow realtime invalidations, and configure retention, backups, audit review, rate limits, accessibility checks, and incident response. Secrets belong in deployment configuration, never the client bundle.

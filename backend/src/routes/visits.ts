@@ -9,6 +9,8 @@ import {
 
 import { supabaseAdmin } from '../plugins/supabase.js';
 import { requireTenantAccess } from '../services/tenantAccess.js';
+import { requireRole } from '../services/authorization.js';
+import { databaseIdSchema } from '../services/validation.js';
 
 const tenantSchema = z.object({
   tenant: z.string().min(1),
@@ -16,7 +18,7 @@ const tenantSchema = z.object({
 
 const visitParamsSchema = z.object({
   tenant: z.string().min(1),
-  visitId: z.string().uuid(),
+  visitId: databaseIdSchema,
 });
 
 const visitStatusSchema = z.enum([
@@ -33,7 +35,7 @@ const createVisitSchema = z
   .object({
     mode: z.enum(['plan', 'check_in']),
 
-    facilityId: z.string().uuid(),
+    facilityId: databaseIdSchema,
 
     plannedArrivalAt: z
       .string()
@@ -122,10 +124,7 @@ const updateVisitSchema = z.object({
     .datetime()
     .optional(),
 
-  facilityId: z
-    .string()
-    .uuid()
-    .optional(),
+  facilityId: databaseIdSchema.optional(),
 
   workoutFocuses: z
     .array(z.string())
@@ -228,6 +227,22 @@ async function resolveEquipmentNeeds(
   return data ?? [];
 }
 
+async function ensureFacilitySupportsActivity(
+  db: SupabaseClient,
+  universityId: string,
+  facilityId: string,
+  activityId: string,
+) {
+  const { data, error } = await db.from('facility_activities').select('facility_id')
+    .eq('university_id', universityId)
+    .eq('facility_id', facilityId)
+    .eq('activity_id', activityId)
+    .neq('availability', 'unavailable')
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error('Activity is not supported at this facility');
+}
+
 
 // --------------------
 // Routes
@@ -275,7 +290,7 @@ export const visitRoutes: FastifyPluginAsync =
                 name,
                 short_name
               ),
-              workout_focuses(
+              primary_workout_focus:workout_focuses!visits_primary_workout_focus_id_fkey(
                 id,
                 key,
                 display_name
@@ -373,13 +388,14 @@ export const visitRoutes: FastifyPluginAsync =
 
           const db = supabaseAdmin;
 
-          const { university } =
+          const { university, profile } =
             await requireTenantAccess(
               db,
               user.id,
               tenant,
               user.universityId,
             );
+          requireRole(profile.role, ['student']);
 
           /*
            * Make sure facility belongs to tenant.
@@ -417,10 +433,7 @@ export const visitRoutes: FastifyPluginAsync =
           let activityId: string | null =
             null;
 
-          if (
-            body.intent === 'activity' &&
-            body.activity
-          ) {
+          if (body.activity) {
             const activity =
               await resolveActivity(
                 db,
@@ -429,6 +442,7 @@ export const visitRoutes: FastifyPluginAsync =
               );
 
             activityId = activity.id;
+            await ensureFacilitySupportsActivity(db, university.id, body.facilityId, activity.id);
           }
 
           const equipment =
@@ -493,6 +507,11 @@ export const visitRoutes: FastifyPluginAsync =
             expected_end_at:
               body.mode === 'check_in'
                 ? expectedEnd.toISOString()
+                : null,
+
+            auto_close_at:
+              body.mode === 'check_in'
+                ? new Date(expectedEnd.getTime() + university.auto_close_grace_minutes * 60_000).toISOString()
                 : null,
 
             last_activity_at:
@@ -592,6 +611,16 @@ export const visitRoutes: FastifyPluginAsync =
             return reply.code(400).send({
               error: 'INVALID_VISIT',
               issues: error.issues,
+            });
+          }
+
+          if (
+            error instanceof Error &&
+            error.message === 'ROLE_ACCESS_DENIED'
+          ) {
+            return reply.code(403).send({
+              error: 'FORBIDDEN',
+              message: 'Student access is required',
             });
           }
 
@@ -759,6 +788,9 @@ export const visitRoutes: FastifyPluginAsync =
               updates.expected_end_at =
                 expectedEnd.toISOString();
 
+              updates.auto_close_at =
+                new Date(expectedEnd.getTime() + university.auto_close_grace_minutes * 60_000).toISOString();
+
               break;
             }
 
@@ -818,6 +850,17 @@ export const visitRoutes: FastifyPluginAsync =
 
               updates.expected_end_at =
                 body.expectedEndAt;
+
+              updates.auto_close_at = new Date(
+                Date.parse(body.expectedEndAt) + university.auto_close_grace_minutes * 60_000,
+              ).toISOString();
+
+              if (visit.checked_in_at) {
+                updates.expected_duration_minutes = Math.max(
+                  5,
+                  Math.round((Date.parse(body.expectedEndAt) - Date.parse(visit.checked_in_at)) / 60_000),
+                );
+              }
 
               updates.last_activity_at =
                 now;
@@ -881,6 +924,10 @@ export const visitRoutes: FastifyPluginAsync =
                   });
               }
 
+              if (visit.activity_id) {
+                await ensureFacilitySupportsActivity(db, university.id, facility.id, visit.activity_id);
+              }
+
               updates.facility_id =
                 facility.id;
 
@@ -913,9 +960,6 @@ export const visitRoutes: FastifyPluginAsync =
 
               updates.primary_workout_focus_id =
                 focuses[0].id;
-
-              updates.activity_id =
-                null;
 
               await db
                 .from('visit_secondary_focuses')
@@ -950,7 +994,7 @@ export const visitRoutes: FastifyPluginAsync =
             }
 
             case 'change_activity': {
-              if (!body.activity) {
+              if (!body.activity && visit.intent === 'activity') {
                 return reply
                   .code(400)
                   .send({
@@ -959,27 +1003,13 @@ export const visitRoutes: FastifyPluginAsync =
                   });
               }
 
-              const activity =
-                await resolveActivity(
-                  db,
-                  university.id,
-                  body.activity,
-                );
-
-              updates.intent =
-                'activity';
-
-              updates.activity_id =
-                activity.id;
-
-              updates.primary_workout_focus_id =
-                null;
-
-              await db
-                .from('visit_secondary_focuses')
-                .delete()
-                .eq('visit_id', visitId)
-                .eq('university_id', university.id);
+              if (body.activity) {
+                const activity = await resolveActivity(db, university.id, body.activity);
+                await ensureFacilitySupportsActivity(db, university.id, visit.facility_id, activity.id);
+                updates.activity_id = activity.id;
+              } else {
+                updates.activity_id = null;
+              }
 
               break;
             }

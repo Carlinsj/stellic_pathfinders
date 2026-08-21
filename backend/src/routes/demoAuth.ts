@@ -2,6 +2,9 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
 import { supabaseAdmin } from '../plugins/supabase.js';
+import { env } from '../config/env.js';
+
+const tenantParamsSchema = z.object({ tenant: z.string().min(1) });
 
 const demoSessionSchema = z.object({
   tenant: z.string().min(1),
@@ -10,9 +13,41 @@ const demoSessionSchema = z.object({
 
 export const demoAuthRoutes: FastifyPluginAsync =
   async (app) => {
+    app.get('/tenants/:tenant/demo-accounts', async (request, reply) => {
+      if (!env.DEMO_ENABLED) return reply.code(404).send({ error: 'NOT_FOUND' });
+      try {
+        const { tenant } = tenantParamsSchema.parse(request.params);
+        const { data: university, error: universityError } = await supabaseAdmin
+          .from('universities').select('id').eq('slug', tenant).eq('active', true).single();
+        if (universityError || !university) return reply.code(404).send({ error: 'TENANT_NOT_FOUND' });
+
+        const { data, error } = await supabaseAdmin.from('user_profiles').select(`
+          id, university_id, full_name, email, role, preferred_facility_id, default_privacy_level
+        `).eq('university_id', university.id).order('full_name');
+        if (error) throw error;
+        const accounts = (data ?? [])
+          .filter((profile) => !profile.email.endsWith('@campusfit.invalid'))
+          .map((profile) => ({
+            id: profile.id,
+            universityId: profile.university_id,
+            fullName: profile.full_name,
+            email: profile.email,
+            role: profile.role,
+            preferredFacilityId: profile.preferred_facility_id ?? undefined,
+            defaultPrivacyLevel: profile.default_privacy_level,
+          }));
+        return { accounts };
+      } catch (error) {
+        if (error instanceof z.ZodError) return reply.code(400).send({ error: 'INVALID_REQUEST', issues: error.issues });
+        request.log.error(error);
+        return reply.code(500).send({ error: 'DEMO_ACCOUNTS_FAILED' });
+      }
+    });
+
     app.post(
       '/auth/demo/session',
       async (request, reply) => {
+        if (!env.DEMO_ENABLED) return reply.code(404).send({ error: 'NOT_FOUND' });
         try {
           const body =
             demoSessionSchema.parse(

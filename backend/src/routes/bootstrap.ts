@@ -7,6 +7,7 @@ import {
 } from '../plugins/auth.js';
 
 import { supabaseAdmin } from '../plugins/supabase.js';
+import { autoCloseElapsedVisits } from '../services/visitLifecycle.js';
 
 const paramsSchema = z.object({
   tenant: z.string().min(1),
@@ -68,6 +69,13 @@ export const bootstrapRoutes: FastifyPluginAsync = async (app) => {
         });
       }
 
+      await autoCloseElapsedVisits(db, {
+        universityId: university.id,
+        userId: user.id,
+      });
+
+      const requestedAt = new Date().toISOString();
+
       const [
         facilitiesResult,
         activitiesResult,
@@ -75,10 +83,20 @@ export const bootstrapRoutes: FastifyPluginAsync = async (app) => {
         equipmentTypesResult,
         visitsResult,
         notificationsResult,
+        activeVisitsResult,
+        plannedVisitsResult,
+        syntheticActiveVisitsResult,
+        syntheticPlannedVisitsResult,
       ] = await Promise.all([
         db
           .from('facilities')
-          .select('*')
+          .select(`
+            *,
+            facility_operating_hours(*),
+            facility_activities(*, activities(*)),
+            facility_equipment(*, equipment_types(*), equipment_outages(*)),
+            facility_closures(*)
+          `)
           .eq('university_id', university.id)
           .eq('active', true)
           .order('name'),
@@ -106,7 +124,13 @@ export const bootstrapRoutes: FastifyPluginAsync = async (app) => {
 
         db
           .from('visits')
-          .select('*')
+          .select(`
+            *,
+            primary_workout_focus:workout_focuses!visits_primary_workout_focus_id_fkey(id, key, display_name),
+            activities(id, key, display_name),
+            visit_secondary_focuses(workout_focus_id, workout_focuses(id, key, display_name)),
+            visit_equipment_needs(equipment_type_id, equipment_types(id, key, display_name))
+          `)
           .eq('university_id', university.id)
           .eq('user_id', user.id)
           .order('created_at', {
@@ -121,6 +145,35 @@ export const bootstrapRoutes: FastifyPluginAsync = async (app) => {
           .order('created_at', {
             ascending: false,
           }),
+
+        db
+          .from('visits')
+          .select('id', { count: 'exact', head: true })
+          .eq('university_id', university.id)
+          .eq('status', 'checked_in')
+          .neq('source', 'demo')
+          .gt('auto_close_at', requestedAt),
+
+        db
+          .from('visits')
+          .select('id', { count: 'exact', head: true })
+          .eq('university_id', university.id)
+          .in('status', ['planned', 'delayed'])
+          .neq('source', 'demo'),
+
+        db
+          .from('visits')
+          .select('id', { count: 'exact', head: true })
+          .eq('university_id', university.id)
+          .eq('source', 'demo')
+          .eq('status', 'checked_in'),
+
+        db
+          .from('visits')
+          .select('id', { count: 'exact', head: true })
+          .eq('university_id', university.id)
+          .eq('source', 'demo')
+          .eq('status', 'planned'),
       ]);
 
       const databaseError =
@@ -129,7 +182,11 @@ export const bootstrapRoutes: FastifyPluginAsync = async (app) => {
         workoutFocusesResult.error ??
         equipmentTypesResult.error ??
         visitsResult.error ??
-        notificationsResult.error;
+        notificationsResult.error ??
+        activeVisitsResult.error ??
+        plannedVisitsResult.error ??
+        syntheticActiveVisitsResult.error ??
+        syntheticPlannedVisitsResult.error;
 
       if (databaseError) {
         throw databaseError;
@@ -144,6 +201,16 @@ export const bootstrapRoutes: FastifyPluginAsync = async (app) => {
         equipmentTypes: equipmentTypesResult.data ?? [],
         ownVisits: visitsResult.data ?? [],
         notifications: notificationsResult.data ?? [],
+        demoStatus: ['university_admin', 'demo_admin', 'platform_admin'].includes(profile.role)
+          ? {
+              universityId: university.id,
+              activeCheckIns: activeVisitsResult.count ?? 0,
+              futurePlans: plannedVisitsResult.count ?? 0,
+              hasPlannedVisit: (syntheticPlannedVisitsResult.count ?? 0) > 0,
+              hasSyntheticActiveVisit: (syntheticActiveVisitsResult.count ?? 0) > 0,
+              updatedAt: new Date().toISOString(),
+            }
+          : undefined,
       };
     } catch (error) {
       if (error instanceof AuthenticationError) {

@@ -1,10 +1,8 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 
-async function pointerTap(page: Page, locator: Locator) {
+async function pointerTap(locator: Locator) {
   await expect(locator).toBeVisible();
-  const box = await locator.boundingBox();
-  expect(box).not.toBeNull();
-  await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await locator.click();
 }
 
 test('public landing explains sources and privacy', async ({ page }) => {
@@ -40,7 +38,7 @@ test('complete NYU planned visit with delay, check-in, and check-out', async ({ 
   await page.getByRole('button', { name: /Maya Chen/ }).click();
   await expect(page.getByRole('heading', { name: /Good (morning|afternoon|evening), Maya/ })).toBeVisible();
   const recommendationHero = page.locator('.recommendation-hero');
-  await expect(recommendationHero).toContainText(/CampusFit users checked in/);
+  await expect(recommendationHero).toContainText(/(person|people) checked in with CampusFit/);
   await recommendationHero.locator('.hero-actions .button--primary').click();
   await expect(page.getByRole('heading', { name: /What are you doing/i })).toBeVisible();
   await page.getByRole('button', { name: /Continue/ }).click();
@@ -57,7 +55,7 @@ test('complete NYU planned visit with delay, check-in, and check-out', async ({ 
   await expect(upcoming).toBeVisible();
   await upcoming.getByRole('button', { name: /Running late/ }).click();
   const delayButton = page.getByRole('button', { name: /20 minutes late/ });
-  await pointerTap(page, delayButton);
+  await pointerTap(delayButton);
   await expect(upcoming).toContainText('Updated arrival');
   await upcoming.getByRole('button', { name: /I’m here/ }).press('Enter');
   const active = page.locator('.active-visit-card');
@@ -365,7 +363,7 @@ test('mobile navigation and privacy states are accessible', async ({ page }, tes
   await page.getByRole('button', { name: /Maya Chen/ }).click();
   const navigation = page.getByRole('navigation', { name: 'Mobile navigation' });
   await expect(navigation).toBeVisible();
-  await pointerTap(page, navigation.getByRole('link', { name: 'Visits' }));
+  await pointerTap(navigation.getByRole('link', { name: 'Visits' }));
   await expect(page.getByRole('heading', { name: /Your CampusFit activity, kept private/ })).toBeVisible();
   await expect(page.getByText(/Private to Maya Chen/)).toBeVisible();
 });

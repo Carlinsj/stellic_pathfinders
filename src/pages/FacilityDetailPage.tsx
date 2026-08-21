@@ -7,7 +7,7 @@ import { DataLabel, DataSourceLabel, ForecastEstimate, ProgressBar, StatusPill }
 import { WorkoutEquipmentStatus } from '../components/WorkoutEquipmentStatus';
 import { workoutFocuses } from '../data/catalog';
 import { useTenant } from '../data/TenantContext';
-import { crowdLabel, formatTime, formatTimeInput } from '../lib/format';
+import { campusFitCheckInText, crowdLabel, formatTime, formatTimeInput } from '../lib/format';
 import { calculateEquipmentDemand } from '../services/equipmentDemand';
 import { approximateExpectedVisitors, forecastDemand } from '../services/forecasting';
 import { getLiveAggregate } from '../services/liveAggregation';
@@ -68,7 +68,7 @@ export function FacilityDetailPage() {
       <aside className="facility-live-card" aria-label="Current CampusFit prediction">
         <div><span className="live-beacon" aria-hidden="true" /> Current CampusFit view</div>
         <ForecastEstimate forecast={forecast} className="forecast-estimate--inverse" />
-        <small className="facility-live-context"><strong>{crowdLabel(forecast.crowdLevel)} demand</strong><span>{aggregate.campusFitCheckIns} voluntary CampusFit check-ins · not official occupancy</span></small>
+        <small className="facility-live-context"><strong>{crowdLabel(forecast.crowdLevel)} demand</strong><span>{campusFitCheckInText(aggregate.campusFitCheckIns)} · not official occupancy</span></small>
       </aside>
     </header>
 
@@ -87,7 +87,7 @@ export function FacilityDetailPage() {
         <article className="detail-card detail-card--wide">
           <div className="card-heading"><div><DataLabel>Current availability</DataLabel><h2 id="facility-overview-title">Plan with useful context</h2></div><UsersRound aria-hidden="true" /></div>
           <div className="now-summary-grid">
-            <div><DataLabel>Voluntary participation</DataLabel><strong className="now-checkin-value">{aggregate.campusFitCheckIns}</strong><p>CampusFit users checked in</p><DataSourceLabel>Updated {formatTime(aggregate.updatedAt, state.university.timezone)} · not official occupancy</DataSourceLabel></div>
+            <div><DataLabel>Voluntary participation</DataLabel><strong className="now-checkin-value">{aggregate.campusFitCheckIns}</strong><p>{aggregate.campusFitCheckIns === 1 ? 'person checked in with CampusFit' : 'people checked in with CampusFit'}</p><DataSourceLabel>Updated {formatTime(aggregate.updatedAt, state.university.timezone)} · not official occupancy</DataSourceLabel></div>
             <div><DataLabel>CampusFit prediction</DataLabel><h2>{crowdLabel(forecast.crowdLevel)}</h2><ForecastEstimate forecast={forecast} /><StatusPill level={forecast.confidence}>{forecast.confidence} confidence</StatusPill></div>
           </div>
           <ProgressBar value={predictedCapacityShare} label={`About ${approximateExpectedVisitors(forecast)} expected visitors compared with facility capacity ${facility.capacity}`} />

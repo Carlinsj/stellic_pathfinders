@@ -1,6 +1,6 @@
 import { CalendarClock, Clock3, LogIn, UsersRound } from 'lucide-react';
 import type { FacilityParticipationTracker as TrackerData } from '../domain/types';
-import { formatTime } from '../lib/format';
+import { campusFitCheckInText, formatTime } from '../lib/format';
 import { DataLabel, DataSourceLabel, StatusPill } from './ui';
 
 export function ParticipationTracker({
@@ -24,7 +24,7 @@ export function ParticipationTracker({
       <div>
         <DataLabel>{planning ? `Planning window · ${facilityName}` : `Live at ${facilityName}`}</DataLabel>
         <h2 id={`participation-${tracker.facilityId}-${planning ? 'planning' : 'live'}`}>
-          {planning ? `${scheduledForWindow} scheduled for this time` : `${tracker.campusFitCheckIns} checked in with CampusFit`}
+          {planning ? `${scheduledForWindow} scheduled for this time` : campusFitCheckInText(tracker.campusFitCheckIns)}
         </h2>
         <p>{planning ? `${windowLabel} arrival window` : 'Anonymous, voluntary CampusFit check-ins—not total gym occupancy.'}</p>
       </div>
@@ -35,7 +35,7 @@ export function ParticipationTracker({
       <div><CalendarClock aria-hidden="true" /><span><strong>{scheduledForWindow}</strong><small>{includeDraftPlan ? 'scheduled after you save' : 'scheduled in this window'}</small></span></div>
       <div><UsersRound aria-hidden="true" /><span><strong>{tracker.typicalVisitorRange[0]}–{tracker.typicalVisitorRange[1]}</strong><small>usually expected at this time</small></span></div>
     </div> : <div className="participation-tracker__live-grid">
-      <div className="participation-tracker__total"><UsersRound aria-hidden="true" /><span><strong>{tracker.campusFitCheckIns}</strong><small>current CampusFit check-ins</small></span></div>
+      <div className="participation-tracker__total"><UsersRound aria-hidden="true" /><span><strong>{tracker.campusFitCheckIns}</strong><small>{tracker.campusFitCheckIns === 1 ? 'person currently checked in' : 'people currently checked in'}</small></span></div>
       <div><CalendarClock aria-hidden="true" /><span><strong>{tracker.plannedCheckIns}</strong><small>arrived from schedules</small></span></div>
       <div><LogIn aria-hidden="true" /><span><strong>{tracker.walkInCheckIns}</strong><small>walk-in check-ins</small></span></div>
       <div><Clock3 aria-hidden="true" /><span><strong>{tracker.scheduledNotCheckedIn}</strong><small>scheduled, not here yet · {windowLabel}</small></span></div>

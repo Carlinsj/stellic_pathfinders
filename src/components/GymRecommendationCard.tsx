@@ -26,7 +26,7 @@ export function GymRecommendationCard({ state, tenant, recommendation, index }: 
       <p className="gym-ranking-reason"><Sparkles />{recommendation.explanation}</p>
       <FacilityActivityList activityKeys={recommendation.facility.activities} />
       <div className="gym-comparison-metrics">
-        <span><UsersRound /><strong>{aggregate.campusFitCheckIns}</strong><small>CampusFit check-ins</small></span>
+        <span><UsersRound /><strong>{aggregate.campusFitCheckIns}</strong><small>{aggregate.campusFitCheckIns === 1 ? 'person checked in' : 'people checked in'} with CampusFit</small></span>
         <span><Clock3 /><strong>{recommendation.duration.durationRange[0]}–{recommendation.duration.durationRange[1]} min</strong><small>Estimated workout</small></span>
         <span><Dumbbell /><strong>{topDemand ? crowdLabel(topDemand.demandLevel) : 'Unknown'}</strong><small>{topDemand?.displayName ?? 'Equipment demand'}</small></span>
       </div>

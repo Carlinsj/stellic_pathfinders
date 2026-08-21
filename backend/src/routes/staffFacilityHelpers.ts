@@ -6,12 +6,13 @@ import { authenticateRequest, AuthenticationError } from '../plugins/auth.js';
 import { supabaseAdmin } from '../plugins/supabase.js';
 import { requireRole } from '../services/authorization.js';
 import { requireTenantAccess } from '../services/tenantAccess.js';
+import { databaseIdSchema } from '../services/validation.js';
 
 const staffRoles = ['recreation_staff', 'university_admin', 'platform_admin'] as const;
 
 export const tenantParamsSchema = z.object({ tenant: z.string().min(1) });
-export const facilityParamsSchema = tenantParamsSchema.extend({ facilityId: z.string().uuid() });
-export const equipmentParamsSchema = facilityParamsSchema.extend({ equipmentTypeId: z.string().uuid() });
+export const facilityParamsSchema = tenantParamsSchema.extend({ facilityId: databaseIdSchema });
+export const equipmentParamsSchema = facilityParamsSchema.extend({ equipmentTypeId: databaseIdSchema });
 
 export const hoursUpdateSchema = z.object({
   closingTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'closingTime must use HH:mm format'),

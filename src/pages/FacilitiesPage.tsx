@@ -17,7 +17,7 @@ export function FacilitiesPage() {
     <header className="page-header"><div><DataLabel>{state.university.shortName} facilities</DataLabel><h1>Every gym, one clear view.</h1><p>Compare live participation, predicted crowding, equipment pressure, and travel time.</p></div><Link className="button button--primary button--medium" to={`/${tenant}/plan`}><GitCompareArrows size={18} /> Compare for my workout</Link></header>
     <section className="facility-overview" aria-label="Facility overview">
       <article><span><Building2 aria-hidden="true" /></span><div><strong>{openFacilities} of {state.facilities.length}</strong><small>facilities open now</small></div></article>
-      <article><span><UsersRound aria-hidden="true" /></span><div><strong>{campusFitCheckIns}</strong><small>voluntary CampusFit check-ins</small></div></article>
+      <article><span><UsersRound aria-hidden="true" /></span><div><strong>{campusFitCheckIns}</strong><small>{campusFitCheckIns === 1 ? 'person checked in with CampusFit' : 'people checked in with CampusFit'}</small></div></article>
       <article><span><Sparkles aria-hidden="true" /></span><div><strong>{best.facility.shortName}</strong><small>best overall fit right now</small></div></article>
     </section>
     <section className="best-banner"><span><Sparkles /></span><div><DataLabel>Best overall right now</DataLabel><h2>{best.facility.shortName}</h2><p>{best.explanation}</p></div><div><strong>{best.score}</strong><small>fit score</small></div><Link to={`/${tenant}/facilities/${best.facility.id}`}>See why <ArrowRight size={16} /></Link></section>

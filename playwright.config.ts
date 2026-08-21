@@ -12,5 +12,11 @@ export default defineConfig({
     { name: 'tablet', use: { ...devices['iPad Pro 11'], browserName: 'chromium' } },
     { name: 'mobile', use: { ...devices['iPhone 13'], browserName: 'chromium' } }
   ],
-  webServer: { command: 'npm run dev -- --host 127.0.0.1 --port 5173', url: 'http://127.0.0.1:5173', reuseExistingServer: true, timeout: 120_000 }
+  webServer: {
+    command: 'npm run dev -- --host 127.0.0.1 --port 5173',
+    url: 'http://127.0.0.1:5173',
+    reuseExistingServer: true,
+    timeout: 120_000,
+    env: { VITE_API_MODE: 'local' },
+  }
 });

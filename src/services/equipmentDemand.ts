@@ -1,6 +1,7 @@
 import type { DemoState, DemandLevel, EquipmentDemand } from '../domain/types';
 import { activityEquipment } from '../data/catalog';
 import { getVisitWorkoutFocuses, getWorkoutFocusEquipmentKeys, getWorkoutFocusEquipmentWeight, type WorkoutFocusInput } from './workoutFocus';
+import { getFacilityParticipationTracker } from './participationTracker';
 
 const demandLevel = (ratio: number): DemandLevel => {
   if (ratio < 0.6) return 'low';
@@ -35,6 +36,9 @@ export const calculateEquipmentDemand = (
     ...(selectedActivity ? activityEquipment[selectedActivity] ?? [] : [])
   ]);
   const historicalPressure = facility.baselineByHour[new Date(at).getHours()] ?? 0.35;
+  const participation = getFacilityParticipationTracker(state, facilityId, at);
+  const hasApiTracker = state.participationTrackers?.includes(participation) ?? false;
+  const aggregateParticipation = hasApiTracker ? participation.campusFitCheckIns : 0;
   return state.facilityEquipment
     .filter((item) => item.facilityId === facilityId && item.totalQuantity > 0)
     .map((inventory) => {
@@ -48,7 +52,8 @@ export const calculateEquipmentDemand = (
       }, 0);
       const personalDemand = selectedKeys.has(equipment.key) ? 0.8 : 0;
       const operational = inventory.operationalQuantity;
-      const ratio = operational === 0 ? 3 : (relevantDemand * 0.78 + historicalPressure * operational * 0.72 + personalDemand) / operational;
+      const aggregatePressure = aggregateParticipation * historicalPressure * 0.08;
+      const ratio = operational === 0 ? 3 : (relevantDemand * 0.78 + aggregatePressure + historicalPressure * operational * 0.72 + personalDemand) / operational;
       const level = demandLevel(ratio);
       const baseQueue = level === 'low' ? 1 : level === 'moderate' ? 5 : level === 'high' ? 11 : 18;
       const outagePenalty = Math.max(0, inventory.totalQuantity - operational) * 3;
@@ -59,10 +64,10 @@ export const calculateEquipmentDemand = (
         displayName: equipment.displayName,
         demandLevel: level,
         queueRange: [lowQueue, highQueue] as [number, number],
-        confidence: visits.length >= 8 ? 'medium' as const : 'low' as const,
+        confidence: hasApiTracker ? participation.confidence : visits.length >= 8 ? 'medium' as const : 'low' as const,
         explanation: operational === 0
           ? `All ${equipment.displayName.toLowerCase()} are currently marked unavailable.`
-          : `${Math.round(relevantDemand)} weighted active/planned users for ${operational} operational ${operational === 1 ? 'unit' : 'units'}${inventory.outageReason ? '; an outage is reducing supply' : ''}.`,
+          : `Aggregate CampusFit participation and historical resource pressure for ${operational} operational ${operational === 1 ? 'unit' : 'units'}${inventory.outageReason ? '; an outage is reducing supply' : ''}.`,
         operationalQuantity: operational
       };
     })

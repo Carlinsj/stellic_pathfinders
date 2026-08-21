@@ -8,6 +8,7 @@ import {
 
 import { supabaseAdmin } from '../plugins/supabase.js';
 import { requireTenantAccess } from '../services/tenantAccess.js';
+import { databaseIdSchema } from '../services/validation.js';
 
 const tenantParamsSchema = z.object({
   tenant: z.string().min(1),
@@ -15,7 +16,7 @@ const tenantParamsSchema = z.object({
 
 const notificationParamsSchema = z.object({
   tenant: z.string().min(1),
-  notificationId: z.string().uuid(),
+  notificationId: databaseIdSchema,
 });
 
 const updateNotificationSchema = z.object({

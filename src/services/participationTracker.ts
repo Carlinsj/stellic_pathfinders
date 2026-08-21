@@ -1,4 +1,5 @@
 import type { DemoState, FacilityParticipationTracker, Visit } from '../domain/types';
+import { getCurrentCampusFitCheckIns } from './activeCheckIns';
 
 const WINDOW_MINUTES = 30;
 
@@ -11,6 +12,36 @@ const arrivesInWindow = (visit: Visit, intervalStart: string, intervalEnd: strin
   return arrival >= Date.parse(intervalStart) && arrival < Date.parse(intervalEnd);
 };
 
+const cachedTrackerFor = (
+  state: DemoState,
+  facilityId: string,
+  at: string
+): FacilityParticipationTracker | undefined => {
+  const requestedAt = Date.parse(at);
+  return state.participationTrackers?.find((tracker) =>
+    tracker.universityId === state.university.id &&
+    tracker.facilityId === facilityId &&
+    requestedAt >= Date.parse(tracker.intervalStart) &&
+    requestedAt < Date.parse(tracker.intervalEnd));
+};
+
+const trackerWindowsOverlap = (
+  first: FacilityParticipationTracker,
+  second: FacilityParticipationTracker
+): boolean =>
+  first.universityId === second.universityId &&
+  first.facilityId === second.facilityId &&
+  Date.parse(first.intervalStart) < Date.parse(second.intervalEnd) &&
+  Date.parse(first.intervalEnd) > Date.parse(second.intervalStart);
+
+export const mergeFacilityParticipationTrackers = (
+  existing: readonly FacilityParticipationTracker[],
+  incoming: readonly FacilityParticipationTracker[]
+): FacilityParticipationTracker[] => incoming.reduce<FacilityParticipationTracker[]>(
+  (merged, tracker) => [...merged.filter((item) => !trackerWindowsOverlap(item, tracker)), tracker],
+  [...existing]
+);
+
 export const getFacilityParticipationTracker = (
   state: DemoState,
   facilityId: string,
@@ -19,12 +50,12 @@ export const getFacilityParticipationTracker = (
   const facility = state.facilities.find((item) => item.id === facilityId);
   if (!facility) throw new Error('Facility not found in tenant');
 
+  const cached = cachedTrackerFor(state, facilityId, at);
+  if (cached) return cached;
+
   const intervalStart = at;
   const intervalEnd = addMinutes(at, WINDOW_MINUTES);
-  const active = state.visits.filter((visit) =>
-    visit.universityId === state.university.id &&
-    visit.facilityId === facilityId &&
-    visit.status === 'checked_in');
+  const active = getCurrentCampusFitCheckIns(state, facilityId, at);
   const plannedCheckIns = active.filter((visit) => visit.source === 'planned').length;
   const scheduledNotCheckedIn = state.visits.filter((visit) =>
     visit.universityId === state.university.id &&
