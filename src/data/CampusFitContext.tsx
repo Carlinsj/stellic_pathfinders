@@ -106,8 +106,8 @@ export function CampusFitProvider({ children }: { children: ReactNode }) {
   const [states, setStates] = useState<Record<TenantSlug, DemoState>>(createInitialStates);
   const [sessions, setSessions] = useState<Record<TenantSlug, UserProfile | undefined>>(() => ({ nyu: readStoredSession('nyu') }));
   const [accounts, setAccounts] = useState<Record<TenantSlug, UserProfile[]>>(demoAccounts);
-  const [accountsLoading, setAccountsLoading] = useState(campusFitApi.isEnabled);
-  const [sessionLoading, setSessionLoading] = useState<Record<TenantSlug, boolean>>({ nyu: campusFitApi.hasSession('nyu') });
+  const [accountsLoading, setAccountsLoading] = useState(false);
+  const [sessionLoading, setSessionLoading] = useState<Record<TenantSlug, boolean>>({ nyu: false });
   const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'local'>(campusFitApi.isEnabled ? 'checking' : 'local');
   const [toast, setToast] = useState<ToastMessage>();
   const statesRef = useRef(states);
@@ -117,6 +117,7 @@ export function CampusFitProvider({ children }: { children: ReactNode }) {
   const remindedVisits = useRef(new Set<string>());
   const notifiedAutoClosedVisits = useRef(new Set(Object.values(states).flatMap((state) => state.visits.filter((visit) => visit.status === 'auto_closed').map((visit) => visit.id))));
   const apiLifecycleRefreshes = useRef(new Set<TenantSlug>());
+  const sessionGenerationRef = useRef<Record<TenantSlug, number>>({ nyu: 0 });
 
   const replaceTenantState = useCallback((tenant: TenantSlug, state: DemoState) => {
     const next = { ...statesRef.current, [tenant]: state };
@@ -133,8 +134,9 @@ export function CampusFitProvider({ children }: { children: ReactNode }) {
     channelRef.current?.postMessage(envelope);
   }, []);
 
-  const refreshTenantFromApi = useCallback(async (tenant: TenantSlug) => {
+  const refreshTenantFromApi = useCallback(async (tenant: TenantSlug, shouldApply: () => boolean = () => true) => {
     const state = await campusFitApi.loadTenantState(tenant);
+    if (!shouldApply()) return state;
     replaceTenantState(tenant, state);
     setSessions((current) => ({ ...current, [tenant]: state.currentUser }));
     setBackendStatus('connected');
@@ -288,35 +290,45 @@ export function CampusFitProvider({ children }: { children: ReactNode }) {
   }, [notify, publishTenantState, refreshTenantFromApi, replaceTenantState, sessions]);
 
   const signInAs = useCallback(async (tenant: TenantSlug, user: UserProfile) => {
-    if (campusFitApi.isEnabled) {
-      try {
-        setSessionLoading((current) => ({ ...current, [tenant]: true }));
-        const authenticatedUser = await campusFitApi.signInDemo(tenant, user.id);
+    const sessionGeneration = ++sessionGenerationRef.current[tenant];
+    const localAccount = demoAccounts[tenant].find((account) => account.email === user.email || account.id === user.id);
+    const immediateUser = localAccount ?? user;
+    if (immediateUser.universityId !== statesRef.current[tenant].university.id) throw new Error('Cross-tenant sign-in denied');
+
+    // The bundled tenant state is ready synchronously, so route immediately and
+    // replace it with authoritative API data once the background session is ready.
+    replaceTenantState(tenant, { ...statesRef.current[tenant], currentUser: immediateUser, dataSource: 'local' });
+    setSessions((current) => ({ ...current, [tenant]: immediateUser }));
+    setSessionLoading((current) => ({ ...current, [tenant]: false }));
+    try { window.sessionStorage.setItem(sessionKey(tenant), immediateUser.id); } catch { /* Session still works in memory. */ }
+
+    if (!campusFitApi.isEnabled) return;
+    setBackendStatus('checking');
+    void campusFitApi.signInDemo(tenant, user.id)
+      .then(async (authenticatedUser) => {
+        if (sessionGenerationRef.current[tenant] !== sessionGeneration) {
+          await campusFitApi.signOut(tenant);
+          return;
+        }
         setSessions((current) => ({ ...current, [tenant]: authenticatedUser }));
-        await refreshTenantFromApi(tenant);
-        setSessionLoading((current) => ({ ...current, [tenant]: false }));
-        return;
-      } catch (error) {
-        setSessionLoading((current) => ({ ...current, [tenant]: false }));
+        await refreshTenantFromApi(tenant, () => sessionGenerationRef.current[tenant] === sessionGeneration);
+      })
+      .catch(async (error) => {
+        if (sessionGenerationRef.current[tenant] !== sessionGeneration) return;
         if (campusFitApi.mode === 'remote') {
           await campusFitApi.signOut(tenant);
           setSessions((current) => ({ ...current, [tenant]: undefined }));
-          throw error;
+          try { window.sessionStorage.removeItem(sessionKey(tenant)); } catch { /* Memory session is also cleared. */ }
+          notify(error instanceof Error ? error.message : 'CampusFit could not start this session.', 'warning');
+          return;
         }
-        const localAccount = demoAccounts[tenant].find((account) => account.email === user.email || account.id === user.id);
-        if (!localAccount) throw error;
-        user = localAccount;
         setBackendStatus('local');
         notify(error instanceof CampusFitApiError ? 'Backend unavailable — continuing with the local deterministic demo' : 'Could not start the backend session — using local demo data', 'warning');
-      }
-    }
-    if (user.universityId !== statesRef.current[tenant].university.id) throw new Error('Cross-tenant sign-in denied');
-    replaceTenantState(tenant, { ...statesRef.current[tenant], currentUser: user, dataSource: 'local' });
-    setSessions((current) => ({ ...current, [tenant]: user }));
-    try { window.sessionStorage.setItem(sessionKey(tenant), user.id); } catch { /* Session still works in memory. */ }
+      });
   }, [notify, refreshTenantFromApi, replaceTenantState]);
 
   const signOut = useCallback(async (tenant: TenantSlug) => {
+    sessionGenerationRef.current[tenant] += 1;
     await campusFitApi.signOut(tenant);
     setSessions((current) => ({ ...current, [tenant]: undefined }));
     setSessionLoading((current) => ({ ...current, [tenant]: false }));

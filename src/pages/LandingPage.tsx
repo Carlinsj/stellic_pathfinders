@@ -1,4 +1,4 @@
-import { ArrowRight, BarChart3, CheckCircle2, Clock3, Code2, Dumbbell, GraduationCap, ShieldCheck, Sparkles, UsersRound } from 'lucide-react';
+import { ArrowRight, BarChart3, CheckCircle2, Clock3, Dumbbell, GraduationCap, ShieldCheck, Sparkles, UsersRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Brand } from '../components/Brand';
 
@@ -26,12 +26,6 @@ export function LandingPage() {
           <article className="project-story-card project-story-card--solution"><span className="project-story-number">02</span><small>What I built</small><h3>One plan, matched to the workout.</h3><p>Students choose a focus and time window, compare eligible NYU facilities, and receive a recommendation using hours, travel, relevant equipment, outages, expected duration, and demand ranges.</p><Link className="project-story-link" to="/nyu/login">Try the student flow <ArrowRight size={16} /></Link></article>
           <article className="project-story-card project-story-card--audience"><span className="project-story-number">03</span><small>Who it is for</small><h3>Students fitting movement into a full day.</h3><p>CampusFit is designed for commuters, students with jobs, and anyone trying to make a realistic recreation plan between campus commitments—not optimize every minute of their life.</p></article>
           <article className="project-story-card project-story-card--trust"><span className="project-story-number">04</span><small>Built to be honest</small><h3>Guidance without false precision.</h3><ul><li><CheckCircle2 />Ranges, confidence, freshness, and sources stay visible</li><li><CheckCircle2 />Voluntary check-ins are never labeled official occupancy</li><li><CheckCircle2 />Student activity stays aggregate and privacy-protected</li></ul></article>
-        </div>
-        <div className="project-proof" aria-label="CampusFit project proof points">
-          <div><strong>4</strong><span>verified NYU recreation facilities</span></div>
-          <div><strong>0</strong><span>public attendance lists or location tracking</span></div>
-          <div><strong>1</strong><span>explainable recommendation for the student</span></div>
-          <div className="project-stack"><span><Code2 size={16} />Built and tested with</span><p>React · TypeScript · Vite · Supabase model · Vitest · Playwright</p></div>
         </div>
       </section>
       <section id="how-it-works" className="feature-section"><div className="section-heading"><span className="kicker">Not just “busy”</span><h2>The right gym depends on <em>your workout.</em></h2><p>A moderate crowd can still mean a frustrating back day. CampusFit translates facility demand into the equipment and activities you actually need.</p></div><div className="feature-grid">

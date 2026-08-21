@@ -20,6 +20,7 @@ test('public landing explains sources and privacy', async ({ page }) => {
   await page.locator('#project-story').scrollIntoViewIfNeeded();
   await expect(page.getByRole('heading', { name: /A clearer answer before the walk to the gym/i })).toBeVisible();
   await expect(page.getByText(/Voluntary check-ins are never labeled official occupancy/i)).toBeVisible();
+  await expect(page.locator('.project-proof')).toHaveCount(0);
   await expect(page.getByRole('link', { name: /Try the student flow/i })).toHaveAttribute('href', '/nyu/login');
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'http://127.0.0.1:5173/');
   await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', 'http://127.0.0.1:5173/social-card.png');
@@ -37,9 +38,7 @@ test('complete NYU planned visit with delay, check-in, and check-out', async ({ 
   await page.goto('/nyu/login');
   await page.getByRole('button', { name: /Maya Chen/ }).click();
   await expect(page.getByRole('heading', { name: /Good (morning|afternoon|evening), Maya/ })).toBeVisible();
-  const recommendationHero = page.locator('.recommendation-hero');
-  await expect(recommendationHero).toContainText(/(person|people) checked in with CampusFit/);
-  await recommendationHero.locator('.hero-actions .button--primary').click();
+  await page.getByRole('link', { name: /Plan workout/ }).click();
   await expect(page.getByRole('heading', { name: /What are you doing/i })).toBeVisible();
   await page.getByRole('button', { name: /Continue/ }).click();
   const arrivalTime = await page.evaluate(() => {
@@ -173,11 +172,19 @@ test('quick check-in accepts multiple muscle groups', async ({ page }) => {
   await expect(dialog).toContainText('Chest + Legs');
 });
 
-test('NYU home surfaces all four verified facilities', async ({ page }) => {
+test('NYU home shows anonymous check-in trackers for every gym without an assumed recommendation', async ({ page }) => {
   await page.goto('/nyu/login');
   await page.getByRole('button', { name: /Maya Chen/ }).click();
   await expect(page.locator('.facility-grid--home .facility-card')).toHaveCount(4);
+  await expect(page.locator('.recommendation-hero')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: /Every NYU gym, without guessing your workout/ })).toBeVisible();
+  await expect(page.locator('.facility-checkin-count')).toHaveCount(4);
+  await expect(page.getByText(/Anonymous, voluntary CampusFit participation—not total gym occupancy/)).toHaveCount(4);
   await expect(page.getByRole('heading', { name: 'Brooklyn' })).toBeVisible();
+  await page.getByRole('link', { name: /View anonymous details and plan/ }).first().click();
+  await expect(page).toHaveURL(/\/nyu\/facilities\//);
+  await expect(page.getByRole('heading', { name: /Popular right now/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Plan a visit/ })).toBeVisible();
 });
 
 test('visit history shows actual and expected workout duration', async ({ page }) => {

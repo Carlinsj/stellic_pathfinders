@@ -1,19 +1,17 @@
-import { ArrowRight, Building2, CalendarClock, CalendarPlus, CalendarX2, Check, CheckCircle2, ChevronRight, Clock3, Dumbbell, GitCompareArrows, MapPin, Navigation, ShieldCheck, Sparkles, UsersRound } from 'lucide-react';
+import { ArrowRight, Building2, CalendarClock, CalendarPlus, CalendarX2, Check, CheckCircle2, ChevronRight, Clock3, Dumbbell, GitCompareArrows, Navigation, ShieldCheck, UsersRound } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { FacilityCard } from '../components/FacilityCard';
 import { ParticipationTracker } from '../components/ParticipationTracker';
 import { WorkoutFocusPicker } from '../components/WorkoutFocusPicker';
 import { VisitPrivacyPicker } from '../components/VisitPrivacyPicker';
-import { Button, DataLabel, ForecastEstimate, Modal, QuickAction, SectionHeader, SegmentedControl, StatusPill } from '../components/ui';
+import { Button, DataLabel, Modal, QuickAction, SectionHeader, SegmentedControl } from '../components/ui';
 import { useCampusFit } from '../data/CampusFitContext';
 import { useTenant } from '../data/TenantContext';
 import { activities, workoutFocuses } from '../data/catalog';
 import type { VisitIntent } from '../domain/types';
-import { campusFitCheckInText, crowdLabel, formatDate, formatTime, formatTimeInput } from '../lib/format';
+import { crowdLabel, formatDate, formatTime } from '../lib/format';
 import { getLiveAggregate } from '../services/liveAggregation';
 import { getFacilityParticipationTracker } from '../services/participationTracker';
-import { findBetterRecommendationWindow, getRecommendationGuidance, recommendFacilities } from '../services/recommendation';
 import { forecastDemand, isFacilityOpen } from '../services/forecasting';
 import { cancelVisit, changeActivity, changeWorkoutFocuses, checkInPlannedVisit, checkOutVisit, delayVisit, extendVisitUntil, rescheduleVisit, spontaneousCheckIn } from '../services/visitLifecycle';
 import { getActiveVisitTiming, graceMinutesRemaining } from '../services/visitReminders';
@@ -43,18 +41,6 @@ export function HomePage() {
   const [duration, setDuration] = useState('60');
   const [rescheduledArrival, setRescheduledArrival] = useState('');
   const [extensionEnd, setExtensionEnd] = useState('');
-  const recommendations = useMemo(() => recommendFacilities(state, state.now, 'back', undefined, 50), [state]);
-  const best = recommendations.find((item) => item.eligible) ?? recommendations[0]!;
-  const guidance = useMemo(() => getRecommendationGuidance(best), [best]);
-  const bestAggregate = useMemo(() => getLiveAggregate(state, best.facility.id), [best.facility.id, state]);
-  const bestParticipation = useMemo(() => getFacilityParticipationTracker(state, best.facility.id), [best.facility.id, state]);
-  const betterWindow = useMemo(
-    () => findBetterRecommendationWindow(state, state.now, 'back', undefined, 50, [], best),
-    [best, state]
-  );
-  const promotedWindow = guidance.verdict === 'wait_recommended' ? betterWindow : undefined;
-  const planTarget = promotedWindow?.recommendation ?? best;
-  const planTime = promotedWindow ? formatTimeInput(promotedWindow.at, state.university.timezone) : undefined;
   const activeVisit = state.visits.find((visit) => visit.userId === state.currentUser.id && visit.status === 'checked_in');
   const upcomingVisit = state.visits.find((visit) => visit.userId === state.currentUser.id && (visit.status === 'planned' || visit.status === 'delayed'));
   const activeFacility = activeVisit ? state.facilities.find((facility) => facility.id === activeVisit.facilityId) : undefined;
@@ -168,73 +154,26 @@ export function HomePage() {
   </> : null;
 
   return <div className="page-stack home-page">
-    <header className="page-header home-header"><div><DataLabel>{state.university.shortName} recreation</DataLabel><h1>{greeting}, {firstName}</h1><p>Here’s the best move for your workout today.</p></div><button type="button" className={`home-checkin-control${activeVisit ? ' is-locked' : ''}`} onClick={openCheckIn} disabled={Boolean(activeVisit)} aria-label={activeVisit ? 'Checked in — check-in locked until checkout' : 'Check in'}>{activeVisit ? 'Checked in · locked' : 'Check in'}</button></header>
+    <header className="page-header home-header"><div><DataLabel>{state.university.shortName} recreation</DataLabel><h1>{greeting}, {firstName}</h1><p>See voluntary CampusFit check-ins across every gym, then choose what fits your plans.</p></div><button type="button" className={`home-checkin-control${activeVisit ? ' is-locked' : ''}`} onClick={openCheckIn} disabled={Boolean(activeVisit)} aria-label={activeVisit ? 'Checked in — check-in locked until checkout' : 'Check in'}>{activeVisit ? 'Checked in · locked' : 'Check in'}</button></header>
 
     {activeVisitExperience}
 
     <section className="student-overview" aria-label="Your CampusFit overview">
       <article><span><Building2 aria-hidden="true" /></span><div><strong>{openFacilityCount} of {state.facilities.length}</strong><small>facilities open now</small></div></article>
       <article aria-live="polite" aria-atomic="true"><span><UsersRound aria-hidden="true" /></span><div><strong>{campusFitCheckIns}</strong><small>{campusFitCheckIns === 1 ? 'person currently checked in' : 'people currently checked in'}</small></div></article>
-      <article><span><CalendarClock aria-hidden="true" /></span><div><strong>{activeVisit ? `${activeElapsed} min` : upcomingVisit ? formatTime(upcomingVisit.plannedArrivalAt!, state.university.timezone) : best.facility.shortName}</strong><small>{activeVisit ? 'active visit' : upcomingVisit ? `next at ${upcomingFacility?.shortName ?? 'your facility'}` : 'recommended next'}</small></div></article>
+      <article><span><CalendarClock aria-hidden="true" /></span><div><strong>{activeVisit ? `${activeElapsed} min` : upcomingVisit ? formatTime(upcomingVisit.plannedArrivalAt!, state.university.timezone) : state.facilities.length}</strong><small>{activeVisit ? 'active visit' : upcomingVisit ? `next at ${upcomingFacility?.shortName ?? 'your facility'}` : 'gym check-in trackers'}</small></div></article>
     </section>
 
-    <section className="recommendation-hero">
-      <div className="recommendation-copy">
-        <div className="recommendation-topline">
-          <DataLabel>Best move right now</DataLabel>
-          <span className="kicker recommendation-guidance"><Sparkles size={14} />{guidance.label}</span>
-        </div>
-        <h2>{best.facility.shortName}</h2>
-        <div className="recommendation-meta">
-          <StatusPill level={best.forecast.crowdLevel} />
-          <span><MapPin size={15} />{best.facility.travelMinutes} min away</span>
-          <span><Clock3 size={15} />Open now</span>
-        </div>
-        <p className="recommendation-summary">{guidance.summary}</p>
-        {promotedWindow ? <div className="recommendation-better-window">
-          <Clock3 size={18} />
-          <div><strong>Better option at {formatTime(promotedWindow.at, state.university.timezone)}</strong><span>{promotedWindow.explanation}</span></div>
-        </div> : null}
-        <div className="hero-actions">
-          <Link className="button button--primary button--medium" to={`/${tenant}/plan?facility=${planTarget.facility.id}&focus=back${planTime ? `&time=${planTime}` : ''}`}>
-            {promotedWindow ? `Plan ${planTarget.facility.shortName} at ${formatTime(promotedWindow.at, state.university.timezone)}` : 'Plan this workout'} <ArrowRight size={17} />
-          </Link>
-          <Link className="button button--ghost button--medium" to={`/${tenant}/facilities`}>Compare gyms</Link>
-        </div>
-        <div className="recommendation-highlights">
-          <div>
-            <span className="recommendation-highlight-icon"><Clock3 size={19} /></span>
-            <span><small>Estimated visit</small><strong>{best.duration.durationRange[0]}–{best.duration.durationRange[1]} minutes</strong></span>
-          </div>
-          <div>
-            <span className="recommendation-highlight-icon"><UsersRound size={19} /></span>
-            <span><small>Live CampusFit activity</small><strong>{campusFitCheckInText(bestAggregate.campusFitCheckIns)}</strong></span>
-          </div>
-        </div>
-        <p className="recommendation-reason">{best.explanation}</p>
-        <details className="recommendation-details">
-          <summary>How CampusFit calculated this</summary>
-          <div>
-            <ForecastEstimate forecast={best.forecast} />
-            <p>{best.forecast.sourceExplanation}</p>
-            <p><strong>Live check-ins:</strong> {bestAggregate.sourceExplanation}</p>
-          </div>
-        </details>
-      </div>
+    <section className="home-live-section" aria-labelledby="home-live-title">
+      <SectionHeader eyebrow="Live CampusFit check-ins" title="Every NYU gym, without guessing your workout" titleId="home-live-title" description="Counts are anonymous, voluntary CampusFit check-ins—not official occupancy. Open a gym to see privacy-protected activity details, facility resources, and planning options." />
+      <div className="facility-grid facility-grid--home" aria-label="Anonymous CampusFit check-ins by gym">{state.facilities.map((facility) => <FacilityCard key={facility.id} state={state} facility={facility} tenant={tenant} compact />)}</div>
     </section>
-
-    <ParticipationTracker tracker={bestParticipation} facilityName={best.facility.shortName} timezone={state.university.timezone} />
 
     <section className="quick-actions-section" aria-labelledby="quick-actions-title"><SectionHeader eyebrow="Your next step" title="What do you want to do?" titleId="quick-actions-title" /><div className="quick-action-grid"><QuickAction icon={<Navigation />} label={activeVisit ? 'View active visit' : 'I’m here'} note={activeVisit ? `${activeElapsed} min in progress` : 'Check in anonymously'} onClick={activeVisit ? () => document.querySelector('.active-visit-card')?.scrollIntoView({ behavior: 'smooth' }) : openCheckIn} /><QuickAction icon={<CalendarPlus />} label="Plan workout" note="Choose time and focus" to={`/${tenant}/plan`} /><QuickAction icon={<GitCompareArrows />} label="Compare gyms" note="Ranked for your workout" to={`/${tenant}/facilities`} /></div></section>
 
     {upcomingVisit && upcomingFacility ? <section className="upcoming-strip"><div className="upcoming-icon"><CalendarClock /></div><div><DataLabel>{upcomingVisit.status === 'delayed' ? 'Updated arrival' : `Upcoming ${upcomingVisit.intent === 'activity' ? 'activity' : 'workout'}`}</DataLabel><h3>{upcomingFacility.shortName} at {formatTime(upcomingVisit.plannedArrivalAt!, state.university.timezone)}</h3><p>{upcomingVisitPurpose} · {upcomingVisit.expectedDurationMinutes} min · {crowdLabel(forecastDemand(state, upcomingFacility.id, upcomingVisit.plannedArrivalAt!).crowdLevel)} expected</p></div><div className="upcoming-actions"><button onClick={openPlanManager}>Manage plan</button><button onClick={() => setLateOpen(true)}>Running late?</button><button onClick={() => updateTenant(tenant, (current) => checkInPlannedVisit(current, upcomingVisit.id), 'Plan converted to a live check-in — no double counting')}>I’m here <ArrowRight size={16} /></button></div></section> : null}
 
     {upcomingParticipation && upcomingFacility ? <ParticipationTracker tracker={upcomingParticipation} facilityName={upcomingFacility.shortName} timezone={state.university.timezone} planning /> : null}
-
-    <section className="today-grid">{betterWindow ? <article className="insight-card"><div className="card-heading"><div><DataLabel>Later today</DataLabel><h2>A better window opens at {formatTime(betterWindow.at, state.university.timezone)}</h2></div><Clock3 /></div><p>{betterWindow.explanation} {betterWindow.minutesSavedRange[1] > 0 ? betterWindow.minutesSavedRange[0] > 0 ? `The estimated visit is ${betterWindow.minutesSavedRange[0]}–${betterWindow.minutesSavedRange[1]} minutes shorter.` : `The estimated visit could be up to ${betterWindow.minutesSavedRange[1]} minutes shorter.` : 'The overall fit improves even though the visit-duration ranges overlap.'}</p><div className="time-compare"><div><small>{formatTime(state.now, state.university.timezone)}</small><strong>{crowdLabel(best.forecast.crowdLevel)}</strong><span className={`bar bar--${best.forecast.crowdLevel}`} /></div><ChevronRight /><div><small>{formatTime(betterWindow.at, state.university.timezone)}</small><strong>{crowdLabel(betterWindow.recommendation.forecast.crowdLevel)}</strong><span className={`bar bar--${betterWindow.recommendation.forecast.crowdLevel}`} /></div></div><ForecastEstimate forecast={betterWindow.recommendation.forecast} /><Link className="text-link" to={`/${tenant}/plan?facility=${betterWindow.recommendation.facility.id}&time=${formatTimeInput(betterWindow.at, state.university.timezone)}&focus=back`}>Plan {betterWindow.recommendation.facility.shortName} for {formatTime(betterWindow.at, state.university.timezone)} <ArrowRight size={16} /></Link></article> : <article className="insight-card"><div className="card-heading"><div><DataLabel>Later today</DataLabel><h2>No clearly better window found</h2></div><Clock3 /></div><p>CampusFit did not find an open facility in the next three hours that improves the current fit score by at least eight points.</p><Link className="text-link" to={`/${tenant}/plan?focus=back`}>Compare times manually <ArrowRight size={16} /></Link></article>}
-      <article className="insight-card"><div className="card-heading"><div><DataLabel>Live CampusFit participation</DataLabel><h2>{campusFitCheckInText(campusFitCheckIns)}</h2></div><UsersRound /></div><p>Voluntary CampusFit check-ins across {state.university.shortName}. This is not official total gym occupancy.</p><div className="focus-tags" aria-label="Current facility operating status">{state.facilities.map((facility) => <span key={facility.id}>{facility.shortName}<b>{isFacilityOpen(facility, state.now) ? 'Open' : 'Closed'}</b></span>)}</div><Link className="text-link" to={`/${tenant}/activity`}>Explore demand <ArrowRight size={16} /></Link></article></section>
-
-    <section><div className="section-row"><div><DataLabel>Across NYU</DataLabel><h2>Facilities near you</h2></div><Link className="text-link" to={`/${tenant}/facilities`}>View all facilities <ArrowRight size={16} /></Link></div><div className="facility-grid facility-grid--home">{state.facilities.map((facility) => <FacilityCard key={facility.id} state={state} facility={facility} tenant={tenant} compact />)}</div></section>
 
     <Modal open={checkInOpen} onClose={closeCheckIn} title={checkInStep === 4 ? 'You’re checked in' : 'I’m here'} description={checkInStep === 4 ? undefined : 'Manual facility selection works without location access.'} label={checkInStep === 4 ? 'Visit started' : `Quick check-in · ${Math.min(checkInStep + 1, 4)} of 4`}>
       {checkInStep === 0 ? <div className="checkin-step"><h3>Which NYU gym are you at?</h3><div className="sheet-choice-list">{state.facilities.map((facility) => <button type="button" key={facility.id} className={facilityId === facility.id ? 'is-selected' : ''} onClick={() => { setFacilityId(facility.id); setActivity(''); }}><span>{facility.shortName.slice(0, 2).toUpperCase()}</span><strong>{facility.shortName}<small>{facility.address}</small></strong>{facilityId === facility.id ? <Check /> : null}</button>)}</div><Button size="large" onClick={() => setCheckInStep(1)}>Continue <ArrowRight /></Button></div> : null}

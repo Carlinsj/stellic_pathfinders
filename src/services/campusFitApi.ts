@@ -349,17 +349,6 @@ export const createCampusFitApi = (options: CampusFitApiOptions = {}) => {
     }));
     const visits = array(payload.ownVisits).map((value) => mapVisit(value, focusKeysById, activityKeysById, equipmentKeysById));
     const now = new Date().toISOString();
-    const participationRequests = [
-      ...facilities.map((facility) => ({ facilityId: facility.id, at: now })),
-      ...visits.flatMap((visit) =>
-        (visit.status === 'planned' || visit.status === 'delayed') && visit.plannedArrivalAt
-          ? [{ facilityId: visit.facilityId, at: visit.plannedArrivalAt }]
-          : []),
-    ];
-    const uniqueRequests = [...new Map(participationRequests.map((item) => [`${item.facilityId}:${item.at.slice(0, 16)}`, item])).values()];
-    const participationTrackers = await Promise.all(uniqueRequests.map((item) =>
-      getParticipation(tenant, item.facilityId, item.at).catch(() => undefined)));
-
     return {
       university,
       currentUser,
@@ -368,7 +357,7 @@ export const createCampusFitApi = (options: CampusFitApiOptions = {}) => {
       facilityEquipment,
       visits,
       history: [],
-      participationTrackers: participationTrackers.filter((item): item is FacilityParticipationTracker => Boolean(item)),
+      participationTrackers: [],
       demoStatus: mapDemoStatus(payload.demoStatus, university.id),
       dataSource: 'api',
       now,

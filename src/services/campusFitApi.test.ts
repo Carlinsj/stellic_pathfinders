@@ -108,7 +108,7 @@ const createHarness = (payload: BootstrapPayload = bootstrapPayload) => {
 };
 
 describe('CampusFit API adapter', () => {
-  it('hydrates tenant-scoped domain state from private visits and aggregate participation', async () => {
+  it('hydrates tenant-scoped core state without blocking on aggregate participation', async () => {
     const { api, calls, storageValues } = createHarness();
     await api.signInDemo('nyu', userId);
     const state = await api.loadTenantState('nyu');
@@ -129,7 +129,10 @@ describe('CampusFit API adapter', () => {
       backendId: equipmentId,
       supportedFocuses: expect.arrayContaining(['back']),
     });
-    expect(state.participationTrackers?.[0]).toMatchObject({
+    expect(state.participationTrackers).toEqual([]);
+    expect(calls.filter((call) => call.url.includes('/participation'))).toHaveLength(0);
+    const participation = await api.getParticipation('nyu', facilityId, state.now);
+    expect(participation).toMatchObject({
       universityId,
       facilityId,
       campusFitCheckIns: 10,
@@ -167,7 +170,7 @@ describe('CampusFit API adapter', () => {
     expect(createCall?.init?.headers).toMatchObject({ Authorization: 'Bearer test-token' });
   });
 
-  it('refreshes aggregate windows for future plans without fanning out across visit history', async () => {
+  it('does not fan out participation requests while bootstrapping visits', async () => {
     const payload: BootstrapPayload = {
       ...bootstrapPayload,
       ownVisits: [
@@ -188,8 +191,6 @@ describe('CampusFit API adapter', () => {
     await api.loadTenantState('nyu');
 
     const participationCalls = calls.filter((call) => call.url.includes('/participation'));
-    expect(participationCalls).toHaveLength(2);
-    expect(participationCalls.some((call) => call.url.includes('2027-01-10'))).toBe(true);
-    expect(participationCalls.some((call) => call.url.includes('2025-01-10'))).toBe(false);
+    expect(participationCalls).toHaveLength(0);
   });
 });

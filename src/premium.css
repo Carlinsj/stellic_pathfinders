@@ -341,6 +341,18 @@ input:disabled, select:disabled, textarea:disabled, input:read-only, textarea:re
 .facility-demand-note strong { color: var(--ink); font-size: .7rem; }
 .facility-demand-note span { margin-top: 3px; color: var(--muted); font-size: .59rem; }
 .facility-card .card-link { color: var(--violet); }
+.home-live-section .section-header { margin-bottom: 2px; align-items: end; }
+.home-live-section .section-header p { max-width: 720px; }
+.facility-checkin-card { min-height: 360px; }
+.facility-checkin-card .facility-card__content { margin-bottom: 14px; }
+.facility-checkin-card .facility-card__content > p { min-height: 0; display: flex; }
+.facility-checkin-count { border: 1px solid #ddcfe5; color: var(--violet); background: var(--violet-wash); }
+.facility-checkin-count strong { color: var(--ink); font-size: 2.35rem; }
+.facility-checkin-count small { color: var(--muted); font-size: .7rem; }
+.facility-checkin-note { color: var(--muted); font-size: .7rem; }
+.facility-checkin-card .facility-activity-list { margin-top: 0; }
+.facility-checkin-card .data-source-label { color: var(--muted); }
+.facility-checkin-card .card-link { margin-top: auto; }
 .best-banner { border-radius: 20px; background: #2f2934; }
 .best-banner h2 { color: white; }
 .best-banner > span { color: var(--violet); background: #ead8f2; }

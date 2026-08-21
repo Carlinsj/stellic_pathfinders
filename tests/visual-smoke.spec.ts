@@ -62,8 +62,9 @@ test('student home is overflow-free at required product widths', async ({ page }
       const mobileNavigation = page.getByRole('navigation', { name: 'Mobile navigation' });
       await expect(mobileNavigation).toBeVisible();
       if (width === 390) {
-        const recommendationAction = page.locator('.recommendation-hero .button--primary');
-        const [actionBounds, navigationBounds] = await Promise.all([recommendationAction.boundingBox(), mobileNavigation.boundingBox()]);
+        const detailAction = page.locator('.facility-grid--home .card-link').first();
+        await detailAction.scrollIntoViewIfNeeded();
+        const [actionBounds, navigationBounds] = await Promise.all([detailAction.boundingBox(), mobileNavigation.boundingBox()]);
         expect(actionBounds).not.toBeNull();
         expect(navigationBounds).not.toBeNull();
         expect(actionBounds!.y + actionBounds!.height).toBeLessThanOrEqual(navigationBounds!.y);
